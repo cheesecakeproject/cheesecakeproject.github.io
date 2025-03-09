@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ease.JSON</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#6B7280',
+                        success: '#10B981',
+                        danger: '#EF4444',
+                        warning: '#F59E0B',
+                        info: '#3B82F6'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Base Styles */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            transition: background-color 0.2s ease;
+        }
+
+        .dark {
+            color-scheme: dark;
+        }
+
+        /* JSON Syntax Highlighting */
+        .json-key {
+            color: #E86D13;
+        }
+        .dark .json-key {
+            color: #F97316;
+        }
+        .json-string {
+            color: #3F7F3F;
+        }
+        .dark .json-string {
+            color: #4ADE80;
+        }
+        .json-number {
+            color: #0000DD;
+        }
+        .dark .json-number {
+            color: #38BDF8;
+        }
+        .json-boolean {
+            color: #8800FF;
+        }
+        .dark .json-boolean {
+            color: #A78BFA;
+        }
+        .json-null {
+            color: #888888;
+        }
+        .dark .json-null {
+            color: #9CA3AF;
+        }
+
+        /* Tree View Styles */
+        .tree-node {
+            margin-left: 1.5rem;
+            position: relative;
+            transition: background-color 0.15s;
+        }
+        
+        .tree-node-header {
+            display: flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+        }
+        
+        .tree-node-header:hover {
+            background-color: rgba(93, 92, 222, 0.1);
+        }
+        
+        .dark .tree-node-header:hover {
+            background-color: rgba(93, 92, 222, 0.2);
+        }
+        
+        .tree-node-header.selected {
+            background-color: rgba(93, 92, 222, 0.15);
+        }
+        
+        .dark .tree-node-header.selected {
+            background-color: rgba(93, 92, 222, 0.25);
+        }
+        
+        .tree-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+            margin-right: 4px;
+        }
+        
+        .tree-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        /* Type badges */
+        .type-badge {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 1rem;
+            margin-left: 0.5rem;
+        }
+        
+        .type-object {
+            background: rgba(79, 70, 229, 0.1);
+            color: #4F46E5;
+        }
+        
+        .dark .type-object {
+            background: rgba(79, 70, 229, 0.2);
+        }
+        
+        .type-array {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
+        }
+        
+        .dark .type-array {
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
+        .type-string {
+            background: rgba(245, 158, 11, 0.1);
+            color: #F59E0B;
+        }
+        
+        .dark .type-string {
+            background: rgba(245, 158, 11, 0.2);
+        }
+        
+        .type-number {
+            background: rgba(239, 68, 68, 0.1);
+            color: #EF4444;
+        }
+        
+        .dark .type-number {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        .type-boolean {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8B5CF6;
+        }
+        
+        .dark .type-boolean {
+            background: rgba(139, 92, 246, 0.2);
+        }
+        
+        .type-null {
+            background: rgba(156, 163, 175, 0.1);
+            color: #6B7280;
+        }
+        
+        .dark .type-null {
+            background: rgba(156, 163, 175, 0.2);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 4px;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4B5563;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
+        }
+        
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #6B7280;
+        }
+
+        /* Drag and Drop Styles */
+        .drag-over {
+            background-color: rgba(93, 92, 222, 0.25) !important;
+            outline: 2px dashed #5D5CDE;
+            outline-offset: 2px;
+        }
+
+        .dark .drag-over {
+            background-color: rgba(93, 92, 222, 0.35) !important;
+        }
+        
+        .dragging {
+            opacity: 0.5;
+            border: 1px dashed #5D5CDE;
+        }
+        
+        /* Drop indicator */
+        .drop-indicator {
+            height: 2px;
+            background-color: #5D5CDE;
+            position: absolute;
+            left: 0;
+            right: 0;
+            display: none;
+        }
+        
+        .drop-indicator.top {
+            top: 0;
+        }
+        
+        .drop-indicator.bottom {
+            bottom: 0;
+        }
+        
+        .drop-indicator.show {
+            display: block;
+        }
+
+        /* For mobile */
+        @media (max-width: 768px) {
+            .tree-node {
+                margin-left: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-y-20 opacity-0 max-w-xs">
+        <div class="flex items-center">
+            <div id="toastIcon" class="flex-shrink-0 w-6 h-6 mr-3"></div>
+            <div id="toastMessage" class="text-sm font-medium"></div>
+        </div>
+    </div>
+
+    <!-- Header/Toolbar -->
+    <header class="sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center">
+        <div class="flex items-center space-x-2">
+            <button id="mobileMenuBtn" class="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <h1 class="text-lg font-bold">ease.JSON</h1>
+            <div class="hidden sm:flex space-x-1">
+                <button id="newBtn" class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    New
+                </button>
+                <button id="openBtn" class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18M3 6h18M3 18h18" />
+                    </svg>
+                    Open
+                </button>
+                <button id="saveBtn" class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Save
+                </button>
+            </div>
+            <div class="hidden sm:flex space-x-1">
+                <button id="undoBtn" class="p-1.5 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </button>
+                <button id="redoBtn" class="p-1.5 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="ml-auto flex items-center space-x-2">
+            <div class="relative">
+                <input id="searchInput" type="text" placeholder="Search JSON..." class="w-full sm:w-64 pl-10 pr-4 py-2 text-base rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <button id="themeToggleBtn" class="p-2 rounded-full text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" id="themeIcon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Menu (Hidden by default) -->
+    <div id="mobileMenu" class="lg:hidden fixed inset-0 z-40 hidden">
+        <div class="absolute inset-0 bg-black opacity-50" id="mobileMenuOverlay"></div>
+        <div class="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform p-4">
+            <div class="flex flex-col space-y-2">
+                <button id="mobileNewBtn" class="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    New Document
+                </button>
+                <button id="mobileOpenBtn" class="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18M3 6h18M3 18h18" />
+                    </svg>
+                    Open File
+                </button>
+                <button id="mobileSaveBtn" class="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Save File
+                </button>
+                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                <div class="flex space-x-2 px-3 py-2">
+                    <button id="mobileUndoBtn" class="p-1.5 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </button>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Undo</span>
+                </div>
+                <div class="flex space-x-2 px-3 py-2">
+                    <button id="mobileRedoBtn" class="p-1.5 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </button>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Redo</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex h-[calc(100vh-56px)]">
+        <!-- Navigation Sidebar -->
+        <aside id="navSidebar" class="w-56 border-r border-gray-200 dark:border-gray-700 overflow-auto bg-gray-50 dark:bg-gray-800 transition-all duration-300 hidden lg:block">
+            <div class="p-4">
+                <h2 class="text-sm uppercase font-semibold text-gray-500 dark:text-gray-400 mb-2">Navigation</h2>
+                
+                <!-- Recently Viewed Paths -->
+                <div class="mt-4">
+                    <h3 class="text-xs uppercase font-medium text-gray-500 dark:text-gray-400 mb-2">Recent Paths</h3>
+                    <ul id="recentPathsList" class="space-y-1"></ul>
+                </div>
+                
+                <!-- Recently Opened Files -->
+                <div class="mt-4">
+                    <h3 class="text-xs uppercase font-medium text-gray-500 dark:text-gray-400 mb-2">Recent Files</h3>
+                    <ul id="recentFilesList" class="space-y-1"></ul>
+                </div>
+                
+                <!-- Bookmarks -->
+                <div class="mt-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs uppercase font-medium text-gray-500 dark:text-gray-400">Bookmarks</h3>
+                        <button id="addBookmarkBtn" class="text-xs text-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                        </button>
+                    </div>
+                    <ul id="bookmarksList" class="space-y-1 mt-2"></ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Tree Panel -->
+        <aside id="treePanel" class="w-80 border-r border-gray-200 dark:border-gray-700 overflow-auto bg-gray-50 dark:bg-gray-800 transition-all duration-300 hidden lg:block">
+            <div class="p-4">
+                <h2 class="text-sm uppercase font-semibold text-gray-500 dark:text-gray-400 mb-2">JSON Structure</h2>
+                <div id="treeView" class="mt-2"></div>
+            </div>
+        </aside>
+
+        <!-- Main Panel -->
+        <div id="mainPanel" class="flex-1 overflow-hidden flex flex-col">
+            <!-- Toolbar -->
+            <div class="p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center">
+                <div class="flex space-x-1">
+                    <button id="toggleNavBtn" class="p-1.5 mr-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                    <button id="toggleTreeBtn" class="p-1.5 mr-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="flex space-x-1">
+                    <button id="addNodeBtn" class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add
+                    </button>
+                    <button id="editNodeBtn" class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit
+                    </button>
+                    <button id="deleteNodeBtn" class="px-3 py-1.5 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                    </button>
+                </div>
+                <div class="ml-auto text-sm text-gray-500 dark:text-gray-400">
+                    <span id="jsonStats">Empty document</span>
+                </div>
+            </div>
+
+            <!-- JSON Preview -->
+            <div class="flex-1 overflow-auto p-4 bg-white dark:bg-gray-900">
+                <pre id="jsonPreview" class="font-mono text-sm whitespace-pre-wrap m-0 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg min-h-[200px] outline-none"></pre>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Overlay -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div id="modalContent" class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden"></div>
+    </div>
+
+    <!-- Edit Dialog (Content dynamically generated) -->
+    <template id="editDialogTemplate">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Node</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="keyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Key</label>
+                    <input type="text" id="keyInput" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                </div>
+                <div>
+                    <label for="valueTypeSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value Type</label>
+                    <select id="valueTypeSelect" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                        <option value="string">String</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                        <option value="null">Null</option>
+                        <option value="object">Object</option>
+                        <option value="array">Array</option>
+                    </select>
+                </div>
+                <div id="valueInputContainer">
+                    <label for="valueInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value</label>
+                    <input type="text" id="valueInput" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                </div>
+                <div id="booleanValueContainer" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="boolValue" value="true" class="text-primary">
+                            <span class="ml-2">True</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="boolValue" value="false" class="text-primary" checked>
+                            <span class="ml-2">False</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancelEditBtn" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Cancel
+                </button>
+                <button id="saveEditBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Save
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Add Node Dialog -->
+    <template id="addNodeDialogTemplate">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New Node</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="pathLocationInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location Path</label>
+                    <input type="text" id="pathLocationInput" placeholder="/path/to/location" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Specify location using path (e.g., /users/profile/settings)</p>
+                </div>
+                <div>
+                    <label for="newKeyInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Key</label>
+                    <input type="text" id="newKeyInput" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                </div>
+                <div>
+                    <label for="newValueTypeSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value Type</label>
+                    <select id="newValueTypeSelect" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                        <option value="string">String</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                        <option value="null">Null</option>
+                        <option value="object">Object</option>
+                        <option value="array">Array</option>
+                    </select>
+                </div>
+                <div id="newValueInputContainer">
+                    <label for="newValueInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value</label>
+                    <input type="text" id="newValueInput" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                </div>
+                <div id="newBooleanValueContainer" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Value</label>
+                    <div class="flex space-x-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="newBoolValue" value="true" class="text-primary">
+                            <span class="ml-2">True</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="newBoolValue" value="false" class="text-primary" checked>
+                            <span class="ml-2">False</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancelAddBtn" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Cancel
+                </button>
+                <button id="confirmAddBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Add
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Confirm Dialog -->
+    <template id="confirmDialogTemplate">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2" id="confirmTitle"></h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6" id="confirmMessage"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelConfirmBtn" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Cancel
+                </button>
+                <button id="confirmBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-danger hover:bg-danger/90 focus:outline-none focus:ring-2 focus:ring-danger">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Bookmark Dialog -->
+    <template id="bookmarkDialogTemplate">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add Bookmark</h3>
+            <div class="space-y-4">
+                <div>
+                    <label for="bookmarkNameInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
+                    <input type="text" id="bookmarkNameInput" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                </div>
+                <div>
+                    <label for="bookmarkPathInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Path</label>
+                    <input type="text" id="bookmarkPathInput" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancelBookmarkBtn" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Cancel
+                </button>
+                <button id="saveBookmarkBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Save
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- Help Dialog -->
+    <template id="helpDialogTemplate">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">How to Use</h3>
+            <div class="space-y-4 text-gray-700 dark:text-gray-300 text-sm">
+                <p>This is a powerful JSON editor that allows you to visualize and edit JSON data in an intuitive way.</p>
+                
+                <div>
+                    <h4 class="font-semibold mb-1">Basic Operations:</h4>
+                    <ul class="list-disc ml-5 space-y-1">
+                        <li>Click on a node in the tree view to select it</li>
+                        <li>Double-click to edit a node</li>
+                        <li>Use the Add, Edit, and Delete buttons to manipulate the JSON structure</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-1">Drag and Drop:</h4>
+                    <ul class="list-disc ml-5 space-y-1">
+                        <li>Drag any node to another location in the JSON structure</li>
+                        <li>Hover over a potential target to see drop indicators</li>
+                        <li>Drop to move the node and all its children to the new location</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-1">Path-Based Editing:</h4>
+                    <ul class="list-disc ml-5 space-y-1">
+                        <li>Use the Location Path field to specify where to add nodes</li>
+                        <li>Format: /users/profile/settings (use forward slashes)</li>
+                        <li>Paths automatically create missing objects in the structure</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-1">Navigation:</h4>
+                    <ul class="list-disc ml-5 space-y-1">
+                        <li>Use the Navigation sidebar to track recent paths and files</li>
+                        <li>Create bookmarks for commonly accessed locations</li>
+                        <li>Click on any path to quickly navigate to that location</li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-semibold mb-1">Keyboard Shortcuts:</h4>
+                    <ul class="list-disc ml-5 space-y-1">
+                        <li><strong>Ctrl+Z / ⌘+Z:</strong> Undo</li>
+                        <li><strong>Ctrl+Shift+Z / ⌘+Shift+Z:</strong> Redo</li>
+                        <li><strong>Delete:</strong> Delete selected node</li>
+                        <li><strong>F2 or Enter:</strong> Edit selected node</li>
+                        <li><strong>Ctrl+F / ⌘+F:</strong> Focus search</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button id="closeHelpBtn" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary">
+                    Close
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <input type="file" id="fileInput" accept=".json" class="hidden">
+
+    <script>
+        // Utility functions
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+            
+            // Set icon based on type
+            let iconSvg = '';
+            let bgColor = '';
+            
+            switch (type) {
+                case 'success':
+                    iconSvg = '<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                    bgColor = 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-100';
+                    break;
+                case 'error':
+                    iconSvg = '<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                    bgColor = 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-100';
+                    break;
+                case 'warning':
+                    iconSvg = '<svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>';
+                    bgColor = 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-100';
+                    break;
+                default: // info
+                    iconSvg = '<svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    bgColor = 'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-100';
+            }
+            
+            toastIcon.innerHTML = iconSvg;
+            toastMessage.textContent = message;
+            
+            // Remove previous classes and add new ones
+            toast.className = `fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform max-w-xs ${bgColor}`;
+            
+            // Show toast
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+            
+            // Hide toast after 3 seconds
+            setTimeout(() => {
+                toast.style.transform = 'translateY(20px)';
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+        
+        function showModal(templateId, setupCallback) {
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalContent = document.getElementById('modalContent');
+            const template = document.getElementById(templateId);
+            
+            // Clone the template content
+            const content = template.content.cloneNode(true);
+            
+            // Clear previous content and append new content
+            modalContent.innerHTML = '';
+            modalContent.appendChild(content);
+            
+            // Call setup function to configure the modal
+            if (setupCallback) setupCallback(modalContent);
+            
+            // Show the modal with animation
+            modalOverlay.classList.remove('hidden');
+            modalContent.classList.add('slide-up');
+            
+            // Add click handler to close when clicking overlay
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    hideModal();
+                }
+            }, { once: true });
+            
+            // Add escape key handler
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    hideModal();
+                }
+            }, { once: true });
+        }
+        
+        function hideModal() {
+            const modalOverlay = document.getElementById('modalOverlay');
+            modalOverlay.classList.add('hidden');
+        }
+        
+        function syntaxHighlight(json) {
+            if (!json) return '';
+            
+            // Replace tokens with span-wrapped versions
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                        match = match.replace(/:$/, '');
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+        
+        // Initialize dark mode based on user preference
+        function initTheme() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+                updateThemeIcon(true);
+            }
+            
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                const isDark = event.matches;
+                document.documentElement.classList.toggle('dark', isDark);
+                updateThemeIcon(isDark);
+            });
+        }
+        
+        function updateThemeIcon(isDark) {
+            const themeIcon = document.getElementById('themeIcon');
+            if (isDark) {
+                themeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                `;
+            } else {
+                themeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                `;
+            }
+        }
+        
+        // Application logic
+        document.addEventListener('DOMContentLoaded', function() {
+            // Application state
+            let jsonData = {};
+            let history = [];
+            let historyIndex = -1;
+            let selectedNodePath = null;
+            let dragSourcePath = null;
+            let dragTargetPath = null;
+            const MAX_HISTORY = 50;
+            
+            // Navigation and History State
+            let recentPaths = [];
+            let recentFiles = [];
+            let bookmarks = [];
+            const MAX_RECENT_ITEMS = 10;
+            
+            // DOM Elements
+            const treeView = document.getElementById('treeView');
+            const jsonPreview = document.getElementById('jsonPreview');
+            const jsonStats = document.getElementById('jsonStats');
+            const fileInput = document.getElementById('fileInput');
+            const searchInput = document.getElementById('searchInput');
+            const treePanel = document.getElementById('treePanel');
+            const navSidebar = document.getElementById('navSidebar');
+            const editNodeBtn = document.getElementById('editNodeBtn');
+            const deleteNodeBtn = document.getElementById('deleteNodeBtn');
+            const addNodeBtn = document.getElementById('addNodeBtn');
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            const toggleTreeBtn = document.getElementById('toggleTreeBtn');
+            const toggleNavBtn = document.getElementById('toggleNavBtn');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const mobileMenu = document.getElementById('mobileMenu');
+            const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+            const recentPathsList = document.getElementById('recentPathsList');
+            const recentFilesList = document.getElementById('recentFilesList');
+            const bookmarksList = document.getElementById('bookmarksList');
+            const addBookmarkBtn = document.getElementById('addBookmarkBtn');
+            
+            // Initialize theme
+            initTheme();
+            
+            // Load saved data
+            loadAppData();
+            
+            // Initialize the editor with an empty object
+            updateJsonData({});
+            
+            // Update navigation sidebar
+            updateNavigationLists();
+            
+            // Helper Functions
+            function updateJsonData(newData) {
+                jsonData = newData;
+                updateHistory();
+                renderJsonTree();
+                renderJsonPreview();
+                updateStats();
+            }
+            
+            function updateHistory() {
+                // Add current state to history, discarding any future states if we're in the middle
+                history = history.slice(0, historyIndex + 1);
+                history.push(JSON.stringify(jsonData));
+                historyIndex++;
+                
+                // Limit history size
+                if (history.length > MAX_HISTORY) {
+                    history.shift();
+                    historyIndex--;
+                }
+                
+                // Update undo/redo buttons
+                updateUndoRedoButtons();
+            }
+            
+            function updateUndoRedoButtons() {
+                const canUndo = historyIndex > 0;
+                const canRedo = historyIndex < history.length - 1;
+                
+                // Main buttons
+                document.getElementById('undoBtn').disabled = !canUndo;
+                document.getElementById('redoBtn').disabled = !canRedo;
+                document.getElementById('undoBtn').classList.toggle('opacity-50', !canUndo);
+                document.getElementById('redoBtn').classList.toggle('opacity-50', !canRedo);
+                
+                // Mobile buttons
+                document.getElementById('mobileUndoBtn').disabled = !canUndo;
+                document.getElementById('mobileRedoBtn').disabled = !canRedo;
+                document.getElementById('mobileUndoBtn').classList.toggle('opacity-50', !canUndo);
+                document.getElementById('mobileRedoBtn').classList.toggle('opacity-50', !canRedo);
+            }
+            
+            function undo() {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    jsonData = JSON.parse(history[historyIndex]);
+                    renderJsonTree();
+                    renderJsonPreview();
+                    updateStats();
+                    updateUndoRedoButtons();
+                    showToast('Undo successful', 'info');
+                }
+            }
+            
+            function redo() {
+                if (historyIndex < history.length - 1) {
+                    historyIndex++;
+                    jsonData = JSON.parse(history[historyIndex]);
+                    renderJsonTree();
+                    renderJsonPreview();
+                    updateStats();
+                    updateUndoRedoButtons();
+                    showToast('Redo successful', 'info');
+                }
+            }
+            
+            function updateStats() {
+                // Count properties in the JSON
+                const count = countProperties(jsonData);
+                const size = JSON.stringify(jsonData).length;
+                
+                if (count === 0) {
+                    jsonStats.textContent = 'Empty document';
+                } else {
+                    jsonStats.textContent = `${count} ${count === 1 ? 'property' : 'properties'} · ${formatBytes(size)}`;
+                }
+            }
+            
+            function countProperties(obj) {
+                if (obj === null || typeof obj !== 'object') return 0;
+                
+                let count = 0;
+                
+                if (Array.isArray(obj)) {
+                    // For arrays, count the number of elements
+                    count = obj.length;
+                    
+                    // Then add the count of properties in each element
+                    for (const item of obj) {
+                        if (item !== null && typeof item === 'object') {
+                            count += countProperties(item);
+                        }
+                    }
+                } else {
+                    // For objects, count the number of own properties
+                    count = Object.keys(obj).length;
+                    
+                    // Then add the count of properties in each value
+                    for (const key in obj) {
+                        if (obj.hasOwnProperty(key) && obj[key] !== null && typeof obj[key] === 'object') {
+                            count += countProperties(obj[key]);
+                        }
+                    }
+                }
+                
+                return count;
+            }
+            
+            function formatBytes(bytes) {
+                if (bytes < 1024) return bytes + ' bytes';
+                else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                else return (bytes / 1048576).toFixed(1) + ' MB';
+            }
+            
+            // Path utility functions
+            function parsePath(path) {
+                if (!path) return [];
+                
+                // Remove leading and trailing slashes
+                path = path.trim();
+                if (path.startsWith('/')) path = path.substring(1);
+                if (path.endsWith('/')) path = path.substring(0, path.length - 1);
+                
+                // Split by slashes and filter out empty segments
+                return path.split('/').filter(segment => segment.length > 0);
+            }
+            
+            function pathToString(path) {
+                if (!path || path.length === 0) return '/';
+                return '/' + path.join('/');
+            }
+            
+            // Create or navigate to a path in the JSON
+            function ensurePathExists(pathSegments) {
+                if (!pathSegments || pathSegments.length === 0) return jsonData;
+                
+                // Start at the root
+                let current = jsonData;
+                let newData = JSON.parse(JSON.stringify(jsonData));
+                let temp = newData;
+                
+                // Navigate (and create as needed) each path segment
+                for (let i = 0; i < pathSegments.length; i++) {
+                    const segment = pathSegments[i];
+                    
+                    // If the segment doesn't exist or is not an object/array, create it
+                    if (!temp[segment] || typeof temp[segment] !== 'object') {
+                        // By default, create an object
+                        temp[segment] = {};
+                    }
+                    
+                    temp = temp[segment];
+                }
+                
+                // Update the JSON data with our new structure
+                updateJsonData(newData);
+                
+                // Return the final position
+                return pathSegments;
+            }
+            
+            // Get value at the specified path
+            function getValueAtPath(path) {
+                if (!path || path.length === 0) return jsonData;
+                
+                let current = jsonData;
+                for (let i = 0; i < path.length; i++) {
+                    if (current === undefined || current === null) return undefined;
+                    current = current[path[i]];
+                }
+                return current;
+            }
+            
+            // Set value at the specified path
+            function setValueAtPath(path, value) {
+                if (!path || path.length === 0) {
+                    // Setting root
+                    updateJsonData(value);
+                    return;
+                }
+                
+                // Deep clone the current data
+                const newData = JSON.parse(JSON.stringify(jsonData));
+                
+                let current = newData;
+                for (let i = 0; i < path.length - 1; i++) {
+                    current = current[path[i]];
+                }
+                
+                current[path[path.length - 1]] = value;
+                updateJsonData(newData);
+            }
+            
+            // Delete value at the specified path
+            function deleteValueAtPath(path) {
+                if (!path || path.length === 0) {
+                    // Can't delete root
+                    return false;
+                }
+                
+                // Deep clone the current data
+                const newData = JSON.parse(JSON.stringify(jsonData));
+                
+                let current = newData;
+                for (let i = 0; i < path.length - 1; i++) {
+                    current = current[path[i]];
+                }
+                
+                const lastKey = path[path.length - 1];
+                
+                if (Array.isArray(current)) {
+                    // For arrays, we need to splice out the element
+                    current.splice(lastKey, 1);
+                } else {
+                    // For objects, we can just delete the key
+                    delete current[lastKey];
+                }
+                
+                updateJsonData(newData);
+                return true;
+            }
+            
+            // Move a value from one path to another
+            function moveValueAtPath(sourcePath, targetPath) {
+                if (!sourcePath || sourcePath.length === 0) {
+                    // Can't move root
+                    return false;
+                }
+                
+                // Make sure source and target are different
+                if (JSON.stringify(sourcePath) === JSON.stringify(targetPath)) {
+                    return false;
+                }
+                
+                // Check if target is descendant of source (can't move to child)
+                if (isDescendantPath(sourcePath, targetPath)) {
+                    showToast("Cannot move a node to its own descendant", "error");
+                    return false;
+                }
+                
+                // Get the value at source path
+                const value = getValueAtPath(sourcePath);
+                if (value === undefined) return false;
+                
+                // Get the source key/index
+                const sourceKey = sourcePath[sourcePath.length - 1];
+                
+                // Get source parent and target values
+                const sourceParentPath = sourcePath.slice(0, -1);
+                const sourceParent = getValueAtPath(sourceParentPath);
+                const targetParent = getValueAtPath(targetPath);
+                
+                // Check if target is valid (must be object or array)
+                if (targetParent === null || typeof targetParent !== 'object') {
+                    showToast("Cannot move to a non-object/array target", "error");
+                    return false;
+                }
+                
+                // Clone data for modification
+                const newData = JSON.parse(JSON.stringify(jsonData));
+                
+                // Navigate to source and target in the new data
+                let currentSource = newData;
+                for (let i = 0; i < sourceParentPath.length; i++) {
+                    currentSource = currentSource[sourceParentPath[i]];
+                }
+                
+                let currentTarget = newData;
+                for (let i = 0; i < targetPath.length; i++) {
+                    currentTarget = currentTarget[targetPath[i]];
+                }
+                
+                // Source is an array, use splice
+                if (Array.isArray(sourceParent)) {
+                    // Copy the value
+                    if (Array.isArray(targetParent)) {
+                        // Target is also an array, insert at the end
+                        targetParent.push(value);
+                        // Remove from source
+                        currentSource.splice(sourceKey, 1);
+                    } else {
+                        // Target is an object, need a key
+                        let newKey = "item" + Object.keys(targetParent).length;
+                        currentTarget[newKey] = value;
+                        // Remove from source
+                        currentSource.splice(sourceKey, 1);
+                    }
+                } else {
+                    // Source is an object
+                    if (Array.isArray(targetParent)) {
+                        // Target is an array
+                        currentTarget.push(value);
+                        // Remove from source
+                        delete currentSource[sourceKey];
+                    } else {
+                        // Target is an object
+                        currentTarget[sourceKey] = value;
+                        // Remove from source if different parent
+                        if (JSON.stringify(sourceParentPath) !== JSON.stringify(targetPath)) {
+                            delete currentSource[sourceKey];
+                        }
+                    }
+                }
+                
+                // Update with new structure
+                updateJsonData(newData);
+                
+                // Record recent path for navigation
+                addRecentPath(targetPath);
+                
+                return true;
+            }
+            
+            // Check if one path is a descendant of another
+            function isDescendantPath(ancestorPath, descendantPath) {
+                if (descendantPath.length <= ancestorPath.length) {
+                    return false;
+                }
+                
+                for (let i = 0; i < ancestorPath.length; i++) {
+                    if (ancestorPath[i] !== descendantPath[i]) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+            
+            // Core Rendering Functions
+            function renderJsonTree() {
+                treeView.innerHTML = '';
+                
+                // Create root node element
+                const rootNode = createTreeNode(jsonData, [], 'root');
+                rootNode.classList.add('mb-2');
+                treeView.appendChild(rootNode);
+                
+                // If there was a selected path, try to reselect it
+                if (selectedNodePath) {
+                    const pathString = JSON.stringify(selectedNodePath);
+                    const node = document.querySelector(`.tree-node-header[data-path='${pathString}']`);
+                    if (node) {
+                        selectNode(node);
+                    } else {
+                        selectedNodePath = null;
+                        updateNodeActionButtons();
+                    }
+                } else {
+                    updateNodeActionButtons();
+                }
+            }
+            
+            function createTreeNode(value, path, key) {
+                const node = document.createElement('div');
+                node.className = 'tree-node';
+                
+                const type = getType(value);
+                const isExpandable = type === 'object' || type === 'array';
+                const isArray = Array.isArray(value);
+                
+                // Create the node header
+                const header = document.createElement('div');
+                header.className = 'tree-node-header';
+                header.dataset.path = JSON.stringify(path);
+                header.dataset.type = type;
+                
+                // Add draggable attributes
+                header.draggable = true;
+                
+                // Add drop indicators
+                const topIndicator = document.createElement('div');
+                topIndicator.className = 'drop-indicator top';
+                header.appendChild(topIndicator);
+                
+                const bottomIndicator = document.createElement('div');
+                bottomIndicator.className = 'drop-indicator bottom';
+                header.appendChild(bottomIndicator);
+                
+                // Create toggle for expandable nodes
+                const toggle = document.createElement('div');
+                toggle.className = 'tree-toggle';
+                toggle.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                `;
+                
+                if (!isExpandable) {
+                    toggle.classList.add('invisible');
+                }
+                
+                // Create key element
+                const keyEl = document.createElement('span');
+                keyEl.className = 'font-medium';
+                keyEl.textContent = isNaN(key) || typeof key === 'string' ? key : `[${key}]`;
+                
+                // Create type badge
+                const badge = document.createElement('span');
+                badge.className = `type-badge type-${type} ml-2`;
+                badge.textContent = type;
+                
+                // Create count badge for arrays and objects
+                let countBadge = null;
+                if (isExpandable) {
+                    const count = isArray ? value.length : Object.keys(value).length;
+                    countBadge = document.createElement('span');
+                    countBadge.className = 'ml-2 text-xs bg-gray-200 dark:bg-gray-700 rounded-full px-2 py-0.5';
+                    countBadge.textContent = count;
+                }
+                
+                // Create preview element for non-expandable nodes
+                let previewEl = null;
+                if (!isExpandable) {
+                    const preview = formatPreview(value, type);
+                    previewEl = document.createElement('span');
+                    previewEl.className = 'ml-2 text-gray-500 dark:text-gray-400 text-sm italic truncate';
+                    previewEl.textContent = preview;
+                }
+                
+                // Assemble header
+                header.appendChild(toggle);
+                header.appendChild(keyEl);
+                if (previewEl) header.appendChild(previewEl);
+                header.appendChild(badge);
+                if (countBadge) header.appendChild(countBadge);
+                
+                // Attach event listeners
+                header.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    // Handle toggle click
+                    if (e.target.closest('.tree-toggle') && isExpandable) {
+                        const children = header.nextElementSibling;
+                        const toggleEl = header.querySelector('.tree-toggle');
+                        
+                        if (children.style.display === 'none') {
+                            // Expand
+                            children.style.display = 'block';
+                            toggleEl.classList.remove('collapsed');
+                        } else {
+                            // Collapse
+                            children.style.display = 'none';
+                            toggleEl.classList.add('collapsed');
+                        }
+                        return;
+                    }
+                    
+                    // Handle regular click (select node)
+                    selectNode(header);
+                });
+                
+                // Double-click to edit
+                header.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    editSelectedNode();
+                });
+                
+                // Drag and drop handlers
+                header.addEventListener('dragstart', (e) => {
+                    dragSourcePath = JSON.parse(header.dataset.path);
+                    e.dataTransfer.effectAllowed = 'move';
+                    header.classList.add('dragging');
+                    
+                    // Set data (some browsers require this)
+                    try {
+                        e.dataTransfer.setData('text/plain', JSON.stringify({
+                            path: dragSourcePath,
+                            type: header.dataset.type
+                        }));
+                    } catch (error) {
+                        console.log("SetData not supported or restricted");
+                    }
+                    
+                    // Hide drop indicators during drag start
+                    document.querySelectorAll('.drop-indicator').forEach(ind => {
+                        ind.classList.remove('show');
+                    });
+                });
+                
+                header.addEventListener('dragend', (e) => {
+                    dragSourcePath = null;
+                    header.classList.remove('dragging');
+                    
+                    // Remove all drag effects
+                    document.querySelectorAll('.tree-node-header').forEach(h => {
+                        h.classList.remove('drag-over');
+                    });
+                    
+                    document.querySelectorAll('.drop-indicator').forEach(ind => {
+                        ind.classList.remove('show');
+                    });
+                });
+                
+                header.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Only allow if we have a source path
+                    if (!dragSourcePath) return;
+                    
+                    const currentPath = JSON.parse(header.dataset.path);
+                    
+                    // Don't allow drop on self or descendants
+                    if (JSON.stringify(currentPath) === JSON.stringify(dragSourcePath) || 
+                        isDescendantPath(dragSourcePath, currentPath)) {
+                        e.dataTransfer.dropEffect = 'none';
+                        return;
+                    }
+                    
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    // Highlight potential drop target
+                    header.classList.add('drag-over');
+                });
+                
+                header.addEventListener('dragleave', (e) => {
+                    header.classList.remove('drag-over');
+                    
+                    // Hide drop indicators
+                    const topIndicator = header.querySelector('.drop-indicator.top');
+                    const bottomIndicator = header.querySelector('.drop-indicator.bottom');
+                    if (topIndicator) topIndicator.classList.remove('show');
+                    if (bottomIndicator) bottomIndicator.classList.remove('show');
+                });
+                
+                header.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Remove drag-over effects
+                    header.classList.remove('drag-over');
+                    
+                    // Hide drop indicators
+                    const topIndicator = header.querySelector('.drop-indicator.top');
+                    const bottomIndicator = header.querySelector('.drop-indicator.bottom');
+                    if (topIndicator) topIndicator.classList.remove('show');
+                    if (bottomIndicator) bottomIndicator.classList.remove('show');
+                    
+                    // Get the target path
+                    const targetPath = JSON.parse(header.dataset.path);
+                    
+                    // Make sure we have both paths
+                    if (!dragSourcePath || !targetPath) return;
+                    
+                    // Don't drop on self
+                    if (JSON.stringify(dragSourcePath) === JSON.stringify(targetPath)) return;
+                    
+                    // Don't drop to descendant
+                    if (isDescendantPath(dragSourcePath, targetPath)) {
+                        showToast("Cannot move a node to its own descendant", "error");
+                        return;
+                    }
+                    
+                    // Get the type of target
+                    const targetType = header.dataset.type;
+                    const isTargetContainer = targetType === 'object' || targetType === 'array';
+                    
+                    // If target is an object or array, drop inside it
+                    if (isTargetContainer) {
+                        moveValueAtPath(dragSourcePath, targetPath);
+                        showToast("Node moved successfully", "success");
+                    } else {
+                        // For simple types, move to parent
+                        const targetParentPath = targetPath.slice(0, -1);
+                        moveValueAtPath(dragSourcePath, targetParentPath);
+                        showToast("Node moved successfully", "success");
+                    }
+                });
+                
+                // Create container for children
+                const children = document.createElement('div');
+                children.className = 'ml-4';
+                
+                if (isExpandable) {
+                    // For arrays and objects, render their children
+                    if (isArray) {
+                        value.forEach((item, index) => {
+                            const childPath = [...path, index];
+                            const childNode = createTreeNode(item, childPath, index);
+                            children.appendChild(childNode);
+                        });
+                    } else {
+                        // Sort keys for objects
+                        const keys = Object.keys(value).sort();
+                        keys.forEach(childKey => {
+                            const childPath = [...path, childKey];
+                            const childNode = createTreeNode(value[childKey], childPath, childKey);
+                            children.appendChild(childNode);
+                        });
+                    }
+                }
+                
+                // Add header and children to node
+                node.appendChild(header);
+                node.appendChild(children);
+                
+                return node;
+            }
+            
+            function getType(value) {
+                if (value === null) return 'null';
+                if (Array.isArray(value)) return 'array';
+                return typeof value;
+            }
+            
+            function formatPreview(value, type) {
+                if (type === 'string') return `"${value.length > 30 ? value.substring(0, 27) + '...' : value}"`;
+                if (type === 'number') return value.toString();
+                if (type === 'boolean') return value ? 'true' : 'false';
+                if (type === 'null') return 'null';
+                return '';
+            }
+            
+            function selectNode(header) {
+                // Deselect previously selected node
+                const previouslySelected = document.querySelector('.tree-node-header.selected');
+                if (previouslySelected) {
+                    previouslySelected.classList.remove('selected');
+                }
+                
+                // Select new node
+                header.classList.add('selected');
+                
+                // Update selected path
+                selectedNodePath = JSON.parse(header.dataset.path);
+                
+                // Record in recent paths
+                addRecentPath(selectedNodePath);
+                
+                // Update action buttons
+                updateNodeActionButtons();
+            }
+            
+            function updateNodeActionButtons() {
+                // Enable/disable buttons based on selection
+                const hasSelection = selectedNodePath !== null;
+                const isRoot = hasSelection && selectedNodePath.length === 0;
+                
+                editNodeBtn.disabled = !hasSelection;
+                deleteNodeBtn.disabled = !hasSelection || isRoot;
+                
+                editNodeBtn.classList.toggle('opacity-50', !hasSelection);
+                deleteNodeBtn.classList.toggle('opacity-50', !hasSelection || isRoot);
+            }
+            
+            function renderJsonPreview() {
+                try {
+                    const jsonString = JSON.stringify(jsonData, null, 2);
+                    jsonPreview.innerHTML = syntaxHighlight(jsonString);
+                } catch (error) {
+                    jsonPreview.innerHTML = `<span class="text-red-500">Error formatting JSON: ${error.message}</span>`;
+                }
+            }
+            
+            // Navigation sidebar functions
+            function addRecentPath(path) {
+                if (!path || path.length === 0) return;
+                
+                const pathStr = pathToString(path);
+                
+                // Check if path already exists in recent paths
+                const existingIndex = recentPaths.findIndex(p => p === pathStr);
+                
+                // Remove if exists
+                if (existingIndex !== -1) {
+                    recentPaths.splice(existingIndex, 1);
+                }
+                
+                // Add to the start
+                recentPaths.unshift(pathStr);
+                
+                // Limit size
+                if (recentPaths.length > MAX_RECENT_ITEMS) {
+                    recentPaths.pop();
+                }
+                
+                // Update the UI and save
+                updateNavigationLists();
+                saveAppData();
+            }
+            
+            function addRecentFile(fileName) {
+                if (!fileName) return;
+                
+                // Check if file already exists in recent files
+                const existingIndex = recentFiles.findIndex(f => f === fileName);
+                
+                // Remove if exists
+                if (existingIndex !== -1) {
+                    recentFiles.splice(existingIndex, 1);
+                }
+                
+                // Add to the start
+                recentFiles.unshift(fileName);
+                
+                // Limit size
+                if (recentFiles.length > MAX_RECENT_ITEMS) {
+                    recentFiles.pop();
+                }
+                
+                // Update the UI and save
+                updateNavigationLists();
+                saveAppData();
+            }
+            
+            function updateNavigationLists() {
+                // Update recent paths
+                recentPathsList.innerHTML = '';
+                recentPaths.forEach(path => {
+                    const item = document.createElement('li');
+                    item.className = 'py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-sm flex items-center truncate';
+                    
+                    // Show path name with icon
+                    item.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                        <span class="truncate">${path}</span>
+                    `;
+                    
+                    // Navigate on click
+                    item.addEventListener('click', () => {
+                        navigateToPath(path);
+                    });
+                    
+                    recentPathsList.appendChild(item);
+                });
+                
+                if (recentPaths.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'text-xs text-gray-500 dark:text-gray-400 py-1';
+                    emptyItem.textContent = 'No recent paths';
+                    recentPathsList.appendChild(emptyItem);
+                }
+                
+                // Update recent files
+                recentFilesList.innerHTML = '';
+                recentFiles.forEach(file => {
+                    const item = document.createElement('li');
+                    item.className = 'py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-sm flex items-center truncate';
+                    
+                    // Show file name with icon
+                    item.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span class="truncate">${file}</span>
+                    `;
+                    
+                    recentFilesList.appendChild(item);
+                });
+                
+                if (recentFiles.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'text-xs text-gray-500 dark:text-gray-400 py-1';
+                    emptyItem.textContent = 'No recent files';
+                    recentFilesList.appendChild(emptyItem);
+                }
+                
+                // Update bookmarks
+                bookmarksList.innerHTML = '';
+                bookmarks.forEach((bookmark, index) => {
+                    const item = document.createElement('li');
+                    item.className = 'py-1 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-sm flex items-center justify-between';
+                    
+                    // Main content
+                    const content = document.createElement('div');
+                    content.className = 'flex items-center truncate';
+                    content.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                        <span class="truncate" title="${bookmark.path}">${bookmark.name}</span>
+                    `;
+                    
+                    // Delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'ml-2 text-gray-400 hover:text-red-500';
+                    deleteBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    `;
+                    
+                    // Delete bookmark on click
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        bookmarks.splice(index, 1);
+                        updateNavigationLists();
+                        saveAppData();
+                    });
+                    
+                    item.appendChild(content);
+                    item.appendChild(deleteBtn);
+                    
+                    // Navigate on click
+                    content.addEventListener('click', () => {
+                        navigateToPath(bookmark.path);
+                    });
+                    
+                    bookmarksList.appendChild(item);
+                });
+                
+                if (bookmarks.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'text-xs text-gray-500 dark:text-gray-400 py-1';
+                    emptyItem.textContent = 'No bookmarks';
+                    bookmarksList.appendChild(emptyItem);
+                }
+            }
+            
+            function addBookmark() {
+                showModal('bookmarkDialogTemplate', (modal) => {
+                    const saveBtn = modal.querySelector('#saveBookmarkBtn');
+                    const cancelBtn = modal.querySelector('#cancelBookmarkBtn');
+                    const nameInput = modal.querySelector('#bookmarkNameInput');
+                    const pathInput = modal.querySelector('#bookmarkPathInput');
+                    
+                    // If a node is selected, pre-fill the path
+                    if (selectedNodePath) {
+                        pathInput.value = pathToString(selectedNodePath);
+                        nameInput.value = selectedNodePath.length > 0 ? 
+                            selectedNodePath[selectedNodePath.length - 1].toString() : 'Root';
+                    }
+                    
+                    // Focus name input
+                    setTimeout(() => nameInput.focus(), 100);
+                    
+                    // Handle save button click
+                    saveBtn.addEventListener('click', () => {
+                        const name = nameInput.value.trim();
+                        const path = pathInput.value.trim();
+                        
+                        if (!name || !path) {
+                            showToast('Name and path are required', 'error');
+                            return;
+                        }
+                        
+                        // Add bookmark
+                        bookmarks.push({ name, path });
+                        
+                        // Update UI and save
+                        updateNavigationLists();
+                        saveAppData();
+                        
+                        // Hide modal
+                        hideModal();
+                        
+                        showToast('Bookmark added', 'success');
+                    });
+                    
+                    // Handle cancel button click
+                    cancelBtn.addEventListener('click', hideModal);
+                });
+            }
+            
+            function navigateToPath(pathStr) {
+                // Parse the path string to array
+                const path = parsePath(pathStr);
+                
+                // Find the node in the tree
+                let found = false;
+                
+                // Expand all parent nodes to make the target visible
+                if (path.length > 0) {
+                    // Start at root
+                    let currentPath = [];
+                    
+                    // Go through each segment of the path
+                    for (let i = 0; i < path.length; i++) {
+                        currentPath.push(path[i]);
+                        const pathString = JSON.stringify(currentPath);
+                        const node = document.querySelector(`.tree-node-header[data-path='${pathString}']`);
+                        
+                        if (node) {
+                            // Expand this node if it has children
+                            const children = node.nextElementSibling;
+                            const toggle = node.querySelector('.tree-toggle');
+                            
+                            if (children && toggle && !toggle.classList.contains('invisible')) {
+                                children.style.display = 'block';
+                                toggle.classList.remove('collapsed');
+                            }
+                            
+                            // If this is the target node, select it
+                            if (i === path.length - 1) {
+                                selectNode(node);
+                                found = true;
+                            }
+                        }
+                    }
+                } else {
+                    // Root path
+                    const rootNode = document.querySelector('.tree-node-header[data-path="[]"]');
+                    if (rootNode) {
+                        selectNode(rootNode);
+                        found = true;
+                    }
+                }
+                
+                if (found) {
+                    showToast(`Navigated to ${pathStr}`, 'success');
+                } else {
+                    showToast(`Path not found: ${pathStr}`, 'error');
+                }
+                
+                return found;
+            }
+            
+            // Storage functions
+            function saveAppData() {
+                // Create a data object with all the state we want to persist
+                const appData = {
+                    recentPaths,
+                    recentFiles,
+                    bookmarks
+                };
+                
+                // Use sessionStorage for persistence within the session
+                try {
+                    sessionStorage.setItem('easeJsonData', JSON.stringify(appData));
+                } catch (error) {
+                    console.log('Error saving app data:', error);
+                }
+            }
+            
+            function loadAppData() {
+                try {
+                    const data = sessionStorage.getItem('easeJsonData');
+                    if (data) {
+                        const appData = JSON.parse(data);
+                        recentPaths = appData.recentPaths || [];
+                        recentFiles = appData.recentFiles || [];
+                        bookmarks = appData.bookmarks || [];
+                    }
+                } catch (error) {
+                    console.log('Error loading app data:', error);
+                    recentPaths = [];
+                    recentFiles = [];
+                    bookmarks = [];
+                }
+            }
+            
+            // Node Operations
+            function handleNewDocument() {
+                showModal('confirmDialogTemplate', (modal) => {
+                    const title = modal.querySelector('#confirmTitle');
+                    const message = modal.querySelector('#confirmMessage');
+                    const confirmBtn = modal.querySelector('#confirmBtn');
+                    const cancelBtn = modal.querySelector('#cancelConfirmBtn');
+                    
+                    title.textContent = 'Create New Document';
+                    message.textContent = 'This will clear all current data. Are you sure you want to create a new document?';
+                    
+                    confirmBtn.textContent = 'Create New';
+                    confirmBtn.className = 'px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary';
+                    
+                    confirmBtn.addEventListener('click', () => {
+                        updateJsonData({});
+                        hideModal();
+                        showToast('New document created', 'success');
+                    });
+                    
+                    cancelBtn.addEventListener('click', hideModal);
+                });
+            }
+            
+            function handleOpenFile() {
+                fileInput.click();
+            }
+            
+            function handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        updateJsonData(data);
+                        
+                        // Record the file in recent files
+                        addRecentFile(file.name);
+                        
+                        showToast(`File "${file.name}" loaded successfully`, 'success');
+                    } catch (error) {
+                        showToast(`Error parsing JSON: ${error.message}`, 'error');
+                    }
+                };
+                
+                reader.onerror = function() {
+                    showToast('Error reading file', 'error');
+                };
+                
+                reader.readAsText(file);
+                
+                // Reset the file input so the same file can be selected again
+                fileInput.value = '';
+            }
+            
+            function handleSaveFile() {
+                try {
+                    const jsonString = JSON.stringify(jsonData, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'data.json';
+                    a.click();
+                    
+                    URL.revokeObjectURL(url);
+                    
+                    // Record in recent files
+                    addRecentFile('data.json');
+                    
+                    showToast('File saved successfully', 'success');
+                } catch (error) {
+                    showToast(`Error saving file: ${error.message}`, 'error');
+                }
+            }
+            
+            function handleThemeToggle() {
+                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.contains('dark');
+                updateThemeIcon(isDark);
+                
+                showToast(`Switched to ${isDark ? 'dark' : 'light'} mode`, 'info');
+            }
+            
+            function handleSearch() {
+                const searchTerm = searchInput.value.trim().toLowerCase();
+                if (!searchTerm) {
+                    // Clear search highlights
+                    document.querySelectorAll('.tree-node-header').forEach(header => {
+                        header.style.backgroundColor = '';
+                    });
+                    return;
+                }
+                
+                // Expand all nodes for better search visibility
+                document.querySelectorAll('.tree-toggle').forEach(toggle => {
+                    const header = toggle.closest('.tree-node-header');
+                    const children = header.nextElementSibling;
+                    
+                    if (toggle.classList.contains('collapsed')) {
+                        toggle.classList.remove('collapsed');
+                        children.style.display = 'block';
+                    }
+                });
+                
+                // Highlight matching nodes
+                let foundMatch = false;
+                document.querySelectorAll('.tree-node-header').forEach(header => {
+                    const headerText = header.textContent.toLowerCase();
+                    const isMatch = headerText.includes(searchTerm);
+                    
+                    if (isMatch) {
+                        header.style.backgroundColor = 'rgba(250, 204, 21, 0.2)';
+                        foundMatch = true;
+                        
+                        // Ensure parent nodes are expanded
+                        let parent = header.parentElement.parentElement;
+                        while (parent && parent.classList.contains('tree-node')) {
+                            const parentHeader = parent.querySelector('.tree-node-header');
+                            const toggle = parentHeader.querySelector('.tree-toggle');
+                            const children = parentHeader.nextElementSibling;
+                            
+                            if (toggle && toggle.classList.contains('collapsed')) {
+                                toggle.classList.remove('collapsed');
+                                children.style.display = 'block';
+                            }
+                            
+                            parent = parent.parentElement.parentElement;
+                        }
+                    } else {
+                        header.style.backgroundColor = '';
+                    }
+                });
+                
+                if (!foundMatch) {
+                    showToast(`No matches found for "${searchTerm}"`, 'warning');
+                }
+            }
+            
+            function addNewNode() {
+                showModal('addNodeDialogTemplate', (modal) => {
+                    const confirmBtn = modal.querySelector('#confirmAddBtn');
+                    const cancelBtn = modal.querySelector('#cancelAddBtn');
+                    const keyInput = modal.querySelector('#newKeyInput');
+                    const valueTypeSelect = modal.querySelector('#newValueTypeSelect');
+                    const valueInput = modal.querySelector('#newValueInput');
+                    const booleanContainer = modal.querySelector('#newBooleanValueContainer');
+                    const valueContainer = modal.querySelector('#newValueInputContainer');
+                    const pathLocationInput = modal.querySelector('#pathLocationInput');
+                    
+                    // Get the parent object/array from selected node or root
+                    let parentPath = selectedNodePath || [];
+                    let parentValue = getValueAtPath(parentPath);
+                    const parentType = getType(parentValue);
+                    
+                    // If the selected node is not an object/array, use its parent
+                    if (parentType !== 'object' && parentType !== 'array' && parentPath.length > 0) {
+                        parentPath = parentPath.slice(0, -1);
+                        parentValue = getValueAtPath(parentPath);
+                    }
+                    
+                    // Pre-fill path location if we have a selection
+                    if (parentPath.length > 0) {
+                        pathLocationInput.value = '/' + parentPath.join('/');
+                    }
+                    
+                    const isArray = Array.isArray(parentValue);
+                    
+                    // Set default key for arrays
+                    if (isArray) {
+                        keyInput.value = parentValue.length.toString();
+                        keyInput.disabled = true;
+                    } else {
+                        keyInput.value = 'newKey';
+                        keyInput.disabled = false;
+                        
+                        // Generate a unique key
+                        let counter = 1;
+                        while (parentValue.hasOwnProperty && parentValue.hasOwnProperty(keyInput.value)) {
+                            keyInput.value = `newKey${counter}`;
+                            counter++;
+                        }
+                    }
+                    
+                    // Handle value type changes
+                    valueTypeSelect.addEventListener('change', () => {
+                        const type = valueTypeSelect.value;
+                        if (type === 'boolean') {
+                            valueContainer.style.display = 'none';
+                            booleanContainer.style.display = 'block';
+                        } else {
+                            valueContainer.style.display = 'block';
+                            booleanContainer.style.display = 'none';
+                            
+                            // Set default values based on type
+                            if (type === 'string') valueInput.value = '';
+                            else if (type === 'number') valueInput.value = '0';
+                            else if (type === 'null') {
+                                valueInput.value = 'null';
+                                valueInput.disabled = true;
+                            } else {
+                                valueInput.value = '';
+                                valueInput.disabled = true;
+                            }
+                        }
+                    });
+                    
+                    // Initial value setup
+                    valueTypeSelect.value = 'string';
+                    valueInput.value = '';
+                    valueContainer.style.display = 'block';
+                    booleanContainer.style.display = 'none';
+                    
+                    // Focus path input
+                    setTimeout(() => pathLocationInput.focus(), 100);
+                    
+                    // Handle add button click
+                    confirmBtn.addEventListener('click', () => {
+                        // Get the path from the input or use selected path
+                        let targetPath = pathLocationInput.value.trim() 
+                            ? parsePath(pathLocationInput.value) 
+                            : parentPath;
+                        
+                        // Make sure the path exists
+                        targetPath = ensurePathExists(targetPath);
+                        
+                        // Get the parent object/array at the path
+                        const pathParent = getValueAtPath(targetPath);
+                        const isPathParentArray = Array.isArray(pathParent);
+                        
+                        // Get the key
+                        let key = keyInput.value.trim();
+                        
+                        // For array indices, parse as integer
+                        if (isPathParentArray) {
+                            key = parseInt(key);
+                            if (isNaN(key)) key = pathParent.length;
+                        }
+                        
+                        // Validate key for objects
+                        if (!isPathParentArray && !key) {
+                            showToast('Key cannot be empty', 'error');
+                            return;
+                        }
+                        
+                        // Get value based on type
+                        const type = valueTypeSelect.value;
+                        let value;
+                        
+                        if (type === 'string') {
+                            value = valueInput.value;
+                        } else if (type === 'number') {
+                            value = Number(valueInput.value);
+                            if (isNaN(value)) {
+                                showToast('Invalid number', 'error');
+                                return;
+                            }
+                        } else if (type === 'boolean') {
+                            value = modal.querySelector('input[name="newBoolValue"]:checked').value === 'true';
+                        } else if (type === 'null') {
+                            value = null;
+                        } else if (type === 'object') {
+                            value = {};
+                        } else if (type === 'array') {
+                            value = [];
+                        }
+                        
+                        // Create a deep copy of the parent
+                        let newParent = JSON.parse(JSON.stringify(pathParent));
+                        
+                        // Add new value to parent
+                        if (isPathParentArray) {
+                            // Insert at specific index
+                            if (key < newParent.length) {
+                                // Insert at specific position
+                                newParent.splice(key, 0, value);
+                            } else {
+                                // Add to end
+                                newParent.push(value);
+                            }
+                        } else {
+                            // Add property to object
+                            newParent[key] = value;
+                        }
+                        
+                        // Update the JSON data
+                        setValueAtPath(targetPath, newParent);
+                        
+                        // Hide modal
+                        hideModal();
+                        
+                        // Show path that was created
+                        const displayPath = '/' + targetPath.join('/') + (isPathParentArray ? `[${key}]` : `/${key}`);
+                        showToast(`Node added at ${displayPath}`, 'success');
+                        
+                        // Add the new path to recent paths
+                        const newNodePath = [...targetPath, key];
+                        addRecentPath(newNodePath);
+                    });
+                    
+                    // Handle cancel button click
+                    cancelBtn.addEventListener('click', hideModal);
+                });
+            }
+            
+            function editSelectedNode() {
+                if (!selectedNodePath) return;
+                
+                const nodeValue = getValueAtPath(selectedNodePath);
+                const nodeType = getType(nodeValue);
+                const nodeName = selectedNodePath.length > 0 ? selectedNodePath[selectedNodePath.length - 1] : 'root';
+                const isRoot = selectedNodePath.length === 0;
+                
+                showModal('editDialogTemplate', (modal) => {
+                    const saveBtn = modal.querySelector('#saveEditBtn');
+                    const cancelBtn = modal.querySelector('#cancelEditBtn');
+                    const keyInput = modal.querySelector('#keyInput');
+                    const valueTypeSelect = modal.querySelector('#valueTypeSelect');
+                    const valueInput = modal.querySelector('#valueInput');
+                    const booleanContainer = modal.querySelector('#booleanValueContainer');
+                    const valueContainer = modal.querySelector('#valueInputContainer');
+                    
+                    // Setup key input
+                    keyInput.value = isRoot ? 'root' : nodeName;
+                    keyInput.disabled = isRoot || Array.isArray(getValueAtPath(selectedNodePath.slice(0, -1)));
+                    
+                    // Setup value type selection
+                    valueTypeSelect.value = nodeType;
+                    
+                    // Handle complex values
+                    const isComplex = nodeType === 'object' || nodeType === 'array';
+                    valueTypeSelect.disabled = isRoot || isComplex;
+                    
+                    // Setup value inputs
+                    if (nodeType === 'string') {
+                        valueInput.value = nodeValue;
+                        valueContainer.style.display = 'block';
+                        booleanContainer.style.display = 'none';
+                    } else if (nodeType === 'number') {
+                        valueInput.value = nodeValue;
+                        valueContainer.style.display = 'block';
+                        booleanContainer.style.display = 'none';
+                    } else if (nodeType === 'boolean') {
+                        const trueRadio = modal.querySelector('input[name="boolValue"][value="true"]');
+                        const falseRadio = modal.querySelector('input[name="boolValue"][value="false"]');
+                        trueRadio.checked = nodeValue === true;
+                        falseRadio.checked = nodeValue === false;
+                        valueContainer.style.display = 'none';
+                        booleanContainer.style.display = 'block';
+                    } else if (nodeType === 'null') {
+                        valueInput.value = 'null';
+                        valueInput.disabled = true;
+                        valueContainer.style.display = 'block';
+                        booleanContainer.style.display = 'none';
+                    } else {
+                        // Complex objects
+                        valueInput.value = isRoot ? 'Root object' : JSON.stringify(nodeValue);
+                        valueInput.disabled = true;
+                        valueContainer.style.display = 'block';
+                        booleanContainer.style.display = 'none';
+                    }
+                    
+                    // Handle value type changes
+                    valueTypeSelect.addEventListener('change', () => {
+                        const type = valueTypeSelect.value;
+                        if (type === 'boolean') {
+                            valueContainer.style.display = 'none';
+                            booleanContainer.style.display = 'block';
+                        } else {
+                            valueContainer.style.display = 'block';
+                            booleanContainer.style.display = 'none';
+                            
+                            // Set default values based on type
+                            if (type === 'string') {
+                                valueInput.value = nodeType === 'string' ? nodeValue : '';
+                                valueInput.disabled = false;
+                            }
+                            else if (type === 'number') {
+                                valueInput.value = nodeType === 'number' ? nodeValue : '0';
+                                valueInput.disabled = false;
+                            }
+                            else if (type === 'null') {
+                                valueInput.value = 'null';
+                                valueInput.disabled = true;
+                            } else {
+                                valueInput.value = '';
+                                valueInput.disabled = true;
+                            }
+                        }
+                    });
+                    
+                    // Focus key input if editable, otherwise value input
+                    setTimeout(() => {
+                        if (!keyInput.disabled) {
+                            keyInput.focus();
+                            keyInput.select();
+                        } else if (!valueInput.disabled) {
+                            valueInput.focus();
+                            valueInput.select();
+                        }
+                    }, 100);
+                    
+                    // Handle save button click
+                    saveBtn.addEventListener('click', () => {
+                        // Skip for root node - this can't be edited
+                        if (isRoot) {
+                            hideModal();
+                            return;
+                        }
+                        
+                        const newKey = keyInput.value.trim();
+                        const newType = valueTypeSelect.value;
+                        
+                        // Validate key if it's editable
+                        if (!keyInput.disabled && !newKey) {
+                            showToast('Key cannot be empty', 'error');
+                            return;
+                        }
+                        
+                        // Get the parent
+                        const parentPath = selectedNodePath.slice(0, -1);
+                        const parent = getValueAtPath(parentPath);
+                        
+                        // Remove old key (if we're renaming)
+                        if (!keyInput.disabled && newKey !== nodeName) {
+                            delete parent[nodeName];
+                        }
+                        
+                        // Get the new value based on type
+                        let newValue;
+                        if (newType === 'string') {
+                            newValue = valueInput.value;
+                        } else if (newType === 'number') {
+                            newValue = Number(valueInput.value);
+                            if (isNaN(newValue)) {
+                                showToast('Invalid number', 'error');
+                                return;
+                            }
+                        } else if (newType === 'boolean') {
+                            newValue = modal.querySelector('input[name="boolValue"]:checked').value === 'true';
+                        } else if (newType === 'null') {
+                            newValue = null;
+                        } else {
+                            // Keep the original value for complex types
+                            newValue = nodeValue;
+                        }
+                        
+                        // Update the JSON data
+                        if (keyInput.disabled) {
+                            // Simple value change, no key change
+                            setValueAtPath(selectedNodePath, newValue);
+                        } else {
+                            // Key changed and/or value changed
+                            parent[newKey] = newValue;
+                            setValueAtPath(parentPath, parent);
+                            
+                            // Update navigation path since the key has changed
+                            const newPath = [...parentPath, newKey];
+                            addRecentPath(newPath);
+                        }
+                        
+                        // Hide modal
+                        hideModal();
+                        
+                        showToast('Node updated successfully', 'success');
+                    });
+                    
+                    // Handle cancel button click
+                    cancelBtn.addEventListener('click', hideModal);
+                });
+            }
+            
+            function deleteSelectedNode() {
+                if (!selectedNodePath || selectedNodePath.length === 0) return;
+                
+                const nodeName = selectedNodePath[selectedNodePath.length - 1];
+                
+                showModal('confirmDialogTemplate', (modal) => {
+                    const title = modal.querySelector('#confirmTitle');
+                    const message = modal.querySelector('#confirmMessage');
+                    const confirmBtn = modal.querySelector('#confirmBtn');
+                    const cancelBtn = modal.querySelector('#cancelConfirmBtn');
+                    
+                    title.textContent = 'Delete Node';
+                    message.textContent = `Are you sure you want to delete "${nodeName}"?`;
+                    
+                    confirmBtn.addEventListener('click', () => {
+                        if (deleteValueAtPath(selectedNodePath)) {
+                            showToast('Node deleted successfully', 'success');
+                        } else {
+                            showToast('Failed to delete node', 'error');
+                        }
+                        hideModal();
+                    });
+                    
+                    cancelBtn.addEventListener('click', hideModal);
+                });
+            }
+            
+            function showHelp() {
+                showModal('helpDialogTemplate', (modal) => {
+                    modal.querySelector('#closeHelpBtn').addEventListener('click', hideModal);
+                });
+            }
+            
+            function toggleTreePanel() {
+                treePanel.classList.toggle('hidden');
+            }
+            
+            function toggleNavSidebar() {
+                navSidebar.classList.toggle('hidden');
+            }
+            
+            function toggleMobileMenu() {
+                mobileMenu.classList.toggle('hidden');
+            }
+            
+            // Event Listeners
+            document.getElementById('newBtn').addEventListener('click', handleNewDocument);
+            document.getElementById('mobileNewBtn').addEventListener('click', () => {
+                toggleMobileMenu();
+                handleNewDocument();
+            });
+            
+            document.getElementById('openBtn').addEventListener('click', handleOpenFile);
+            document.getElementById('mobileOpenBtn').addEventListener('click', () => {
+                toggleMobileMenu();
+                handleOpenFile();
+            });
+            
+            document.getElementById('saveBtn').addEventListener('click', handleSaveFile);
+            document.getElementById('mobileSaveBtn').addEventListener('click', () => {
+                toggleMobileMenu();
+                handleSaveFile();
+            });
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            document.getElementById('undoBtn').addEventListener('click', undo);
+            document.getElementById('mobileUndoBtn').addEventListener('click', undo);
+            
+            document.getElementById('redoBtn').addEventListener('click', redo);
+            document.getElementById('mobileRedoBtn').addEventListener('click', redo);
+            
+            themeToggleBtn.addEventListener('click', handleThemeToggle);
+            
+            searchInput.addEventListener('input', handleSearch);
+            searchInput.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    searchInput.value = '';
+                    handleSearch();
+                }
+            });
+            
+            addNodeBtn.addEventListener('click', addNewNode);
+            editNodeBtn.addEventListener('click', editSelectedNode);
+            deleteNodeBtn.addEventListener('click', deleteSelectedNode);
+            
+            toggleTreeBtn.addEventListener('click', toggleTreePanel);
+            toggleNavBtn.addEventListener('click', toggleNavSidebar);
+            mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+            mobileMenuOverlay.addEventListener('click', toggleMobileMenu);
+            
+            addBookmarkBtn.addEventListener('click', addBookmark);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', e => {
+                // Don't trigger shortcuts when in inputs/textareas
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                // Global shortcuts
+                if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    undo();
+                } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+                    e.preventDefault();
+                    redo();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                    e.preventDefault();
+                    searchInput.focus();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    handleSaveFile();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+                    e.preventDefault();
+                    handleOpenFile();
+                } else if (e.key === '?') {
+                    e.preventDefault();
+                    showHelp();
+                }
+                
+                // Node-specific shortcuts (require a selected node)
+                if (selectedNodePath !== null) {
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
+                        if (selectedNodePath.length > 0) {  // Can't delete root
+                            e.preventDefault();
+                            deleteSelectedNode();
+                        }
+                    } else if (e.key === 'Enter' || e.key === 'F2') {
+                        e.preventDefault();
+                        editSelectedNode();
+                    }
+                }
+            });
+
+            // Show initial help notification after a slight delay
+            setTimeout(() => {
+                showToast('Drag JSON nodes to move them! Press "?" for more tips', 'info');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

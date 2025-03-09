@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cheesecake's Project</title>
+    <link rel="icon" href="src/favicon.ico">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #666666;
+            --accent: #3182ce;
+            --background: #ffffff;
+            --card-bg: #f8f8f8;
+            --border: #eeeeee;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            color: var(--primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .site-header {
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .site-title {
+            font-size: 1.75rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .site-description {
+            color: var(--secondary);
+            font-weight: 400;
+            font-size: 0.9rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1100px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin: 2rem 0 1.5rem;
+            color: var(--primary);
+        }
+
+        /* Product Cards */
+        .product-grid {
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .product-card {
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 1.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .product-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .product-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin: 0 0 0.5rem;
+        }
+
+        .product-subtitle {
+            color: var(--secondary);
+            font-size: 0.9rem;
+            margin: 0 0 1rem;
+        }
+
+        .product-description {
+            color: var(--secondary);
+            font-size: 0.85rem;
+            margin: 1rem 0 1.5rem;
+        }
+
+        .product-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Beta Section */
+        .beta-section {
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 2rem;
+            margin: 3rem 0;
+            text-align: center;
+        }
+
+        .beta-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin: 0 0 0.5rem;
+        }
+
+        .beta-description {
+            color: var(--secondary);
+            margin: 0 0 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .project-card {
+            background: var(--card-bg);
+            border-radius: 6px;
+            padding: 1.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .project-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .project-title {
+            font-size: 1rem;
+            font-weight: 500;
+            margin: 0 0 0.5rem;
+        }
+
+        .project-description {
+            color: var(--secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Footer */
+        .site-footer {
+            border-top: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            margin-top: 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .footer-nav {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-link {
+            color: var(--secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .footer-link:hover {
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .site-header, .main-content, .site-footer {
+                padding: 1.5rem;
+            }
+
+            .site-footer {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .footer-nav {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <h1 class="site-title">Cheesecake Project</h1>
+        <p class="site-description">Simple tools for everyday use</p>
+    </header>
+
+    <main class="main-content">
+        <section>
+            <h2 class="section-title">Docs</h2>
+            
+            <div class="product-grid">
+                <!-- Clock Card -->
+                <article class="product-card">
+                    <h3 class="product-title">Privacy Policy</h3>
+                    <p class="product-subtitle">Privacy? Just like Cheesecake Project.</p>
+                    <a href="/doc/pp.md" class="product-cta">
+                        See it →
+                    </a>
+                </article>
+
+                <!-- Timer Card -->
+                <article class="product-card">
+                    <h3 class="product-title">Terms of Use</h3>
+                    <p class="product-subtitle">Terms of Use? We are freedom</p>
+                    <a href="/doc/tou.md" class="product-cta">
+                        See it →
+                    </a>
+                </article>
+            </div>
+    </main>
+
+    <footer class="site-footer">
+        <h2 class="footer-title">Cheesecake's Project</h2>
+        <nav class="footer-nav">
+            <a href="https://github.com/cheesecakeproject/cheesecakeproject.github.io" class="footer-link">GitHub</a>
+            <a href="/index.html" class="footer-link">Tools</a>
+            <a href="#" class="footer-link">Docs</a>
+        </nav>
+    </footer>
+</body>
+</html>

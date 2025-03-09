@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #666666;
+            --accent: #3182ce;
+            --background: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--background);
+            color: var(--primary);
+            line-height: 1.5;
+            padding: 1rem;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .error-code {
+            font-size: 5rem;
+            font-weight: 500;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: 1rem;
+        }
+
+        .error-heading {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .error-description {
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            color: var(--secondary);
+        }
+
+        .home-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .error-code {
+                font-size: 4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="error-code">404</h1>
+        <h2 class="error-heading">Page Not Found</h2>
+        <p class="error-description">
+            The page you're looking for is not available.
+        </p>
+        <a href="/" class="home-link">
+            Return to Homepage →
+        </a>
+    </div>
+</body>
+</html>

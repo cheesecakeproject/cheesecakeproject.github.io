@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer</title>
+    <link rel="icon" href="clock.png" type="image/png"> <!-- Favicon link -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto Mono', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #121212; /* Dark background */
+            color: #ffffff; /* White text */
+        }
+
+        .clock {
+            font-size: 14rem; /* Increased font size for visibility */
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); /* Soft white shadow for the clock */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(34, 34, 34, 0.9); /* Darker semi-transparent background */
+            padding: 50px; /* Increased padding around the clock */
+            border-radius: 15px; /* Rounded corners */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); /* Shadow for depth */
+            transition: transform 0.2s; /* Transition for scaling */
+        }
+
+        .clock:hover {
+            transform: scale(1.05); /* Scale up the clock box on hover */
+        }
+
+        .digit {
+            width: 140px; /* Width for digits */
+            height: 200px; /* Height for digits */
+            background: #1e1e1e; /* Darker background for digits */
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 5px;
+            box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3); /* Soft white shadow for digits */
+            font-size: 8rem; /* Increased font size for digits */
+            transition: transform 0.2s; /* Smooth transition for digit scaling */
+        }
+
+        .digit:hover {
+            transform: scale(1.1); /* Scale up the hovered digit */
+        }
+
+        .colon {
+            font-size: 14rem; /* Font size for colon */
+            margin: 0 10px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5); /* Soft white shadow for the colon */
+        }
+
+        .input-container {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        input {
+            width: 30px; /* Smaller width for input */
+            height: 25px; /* Smaller height for input */
+            font-size: 1rem; /* Smaller font size for input */
+            margin: 0 5px;
+            border: none;
+            border-radius: 5px;
+            padding: 3px; /* Reduced padding */
+            text-align: center;
+            background-color: #333; /* Dark background for input */
+            color: #ffffff; /* White text for input */
+            box-shadow: 0 2px 5px rgba(255, 255, 255, 0.3); /* Soft white shadow for input */
+            outline: none; /* Remove outline */
+            transition: background-color 0.3s, transform 0.2s; /* Transition for background color and scaling */
+        }
+
+        input:hover {
+            background-color: #444; /* Change background on hover */
+            transform: scale(1.05); /* Scale up on hover */
+        }
+
+        /* Remove the spinner arrows from number inputs */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none; /* Remove default appearance */
+            margin: 0; /* Remove margin */
+        }
+
+button {
+    font-family: 'Roboto Mono', sans-serif;
+    background-color: #444; /* Button background */
+    color: white; /* Button text color */
+    border: none;
+    border-radius: 5px;
+    padding: 5px 8px; /* Smaller padding for buttons */
+    font-size: 1rem; /* Smaller font size for buttons */
+    cursor: pointer;
+    margin: 5px;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s; /* Transition for hover effects */
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3); /* Soft white shadow for buttons */
+}
+
+button:hover {
+    background-color: #555; /* Lighter background on hover */
+    transform: scale(1.05); /* Slightly enlarge on hover */
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.5); /* Increase shadow on hover */
+}
+
+button:active {
+    transform: scale(0.95); /* Slightly shrink on click */
+    box-shadow: 0 2px 5px rgba(255, 255, 255, 0.3); /* Reset shadow on click */
+}
+        @media (max-width: 600px) {
+            .clock {
+                font-size: 10rem; /* Adjusted for smaller screens */
+            }
+
+            button {
+                font-size: 0.8rem; /* Smaller font size for buttons on small screens */
+                padding: 4px 6px; /* Adjusted padding for buttons on small screens */
+            }
+
+            input {
+                min-height:200vh;
+                width: 25px; /* Further adjusted width for input on small screens */
+                height: 20px; /* Further adjusted height for input on small screens */
+                font-size: 0.8rem; /* Adjusted font size for input on small screens */
+            }
+        }
+.footer {
+    min-height:200vh;
+    color:#ffcc00;
+    padding:20px;
+}
+    </style>
+</head>
+<body>
+    <audio id="beepSound" src="beep.wav" preload="auto"></audio>
+    <div class="clock">
+        <div class="digit" id="minutesTens">0</div>
+        <div class="digit" id="minutesOnes">0</div>
+        <div class="colon">:</div>
+        <div class="digit" id="secondsTens">0</div>
+        <div class="digit" id="secondsOnes">0</div>
+    </div>
+    <footer style="position: absolute; bottom: -500px; width: 100%; text-align: center;">
+        <p>A part of the Cheesecake Project</p>
+        <p>Feel free to use this clock under the GPL-3.0 license</p>
+        <div class="input-container">
+            <input type="number" id="inputMinutes" placeholder="Min" min="0">
+            <input type="number" id="inputSeconds" placeholder="Sec" min="0">
+        </div>
+        <div>
+            <button id="startButton" onclick="startTimer()">Start</button>
+            <button onclick="resetTimer()">Reset</button>
+            <button id="fullscreenButton" onclick="toggleFullscreen()">Fullscreen</button>
+        </div>
+    </footer>
+    <script>let timer;
+        let totalSeconds = 0;
+        let isRunning = false;
+
+        function startTimer() {
+            if (totalSeconds <= 0) {
+                const inputMinutes = document.getElementById('inputMinutes').value;
+                const inputSeconds = document.getElementById('inputSeconds').value;
+
+                totalSeconds = (parseInt(inputMinutes) || 0) * 60 + (parseInt(inputSeconds) || 0);
+            }
+            isRunning = true;
+            document.getElementById('startButton').innerText = 'Pause';
+            document.getElementById('startButton').onclick = pauseTimer;
+
+            timer = setInterval(() => {
+                if (totalSeconds <= 0) {
+                    clearInterval(timer);
+                    playBeep();
+                    alert("Time's up!");
+                    resetTimer();
+                } else {
+                    totalSeconds--;
+                    updateClock();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timer);
+            isRunning = false;
+            document.getElementById('startButton').innerText = 'Start';
+            document.getElementById('startButton').onclick = startTimer;
+        }
+
+        function resetTimer() {
+            clearInterval(timer);
+            totalSeconds = 0;
+            isRunning = false;
+            document.getElementById('inputMinutes').value = '';
+            document.getElementById('inputSeconds').value = '';
+            document.getElementById('startButton').innerText = 'Start';
+            updateClock();
+        }
+
+        function updateClock() {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            const minutesTens = Math.floor(minutes / 10);
+            const minutesOnes = minutes % 10;
+            const secondsTens = Math.floor(seconds / 10);
+            const secondsOnes = seconds % 10;
+
+            document.getElementById('minutesTens').innerText = minutesTens;
+            document.getElementById('minutesOnes').innerText = minutesOnes;
+            document.getElementById('secondsTens').innerText = secondsTens;
+            document.getElementById('secondsOnes').innerText = secondsOnes;
+        }
+
+        function playBeep() {
+            const beepSound = document.getElementById('beepSound');
+            beepSound.currentTime = 0;
+            beepSound.play().catch(error => {
+                console.error("Error playing sound :", error);
+            });
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }</script>
+</body>
+</html>
