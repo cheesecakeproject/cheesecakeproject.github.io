@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timer</title>
+    <title>Thisistimer</title>
     <link rel="icon" href="clock.png" type="image/png"> <!-- Favicon link -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
     <style>
@@ -167,9 +167,20 @@ button:active {
             <button id="fullscreenButton" onclick="toggleFullscreen()">Fullscreen</button>
         </div>
     </footer>
-    <script>let timer;
+    <script>
+        let timer;
         let totalSeconds = 0;
         let isRunning = false;
+
+        document.addEventListener('click', enableAudio);
+
+        function enableAudio() {
+            const beepSound = document.getElementById('beepSound');
+            beepSound.play().catch(error => {
+                console.error("Error playing sound :", error);
+            });
+            document.removeEventListener('click', enableAudio);
+        }
 
         function startTimer() {
             if (totalSeconds <= 0) {
@@ -228,8 +239,7 @@ button:active {
         }
 
         function playBeep() {
-            "use strict";
-            var beepSound = document.getElementById('beepSound');
+            const beepSound = document.getElementById('beepSound');
             beepSound.currentTime = 0;
             beepSound.play().catch(error => {
                 console.error("Error playing sound :", error);
@@ -246,6 +256,7 @@ button:active {
                     document.exitFullscreen();
                 }
             }
-        }</script>
+        }
+    </script>
 </body>
 </html>
