@@ -144,7 +144,9 @@ button:active {
     </style>
 </head>
 <body>
-    <audio id="beepSound" src="/gadgets/timer/beep.wav" preload="auto"></audio>
+    <audio id="beepSound" preload="auto">
+        <source src="beep.wav" type="audio/wav">
+    </audio>
     <div class="clock">
         <div class="digit" id="minutesTens">0</div>
         <div class="digit" id="minutesOnes">0</div>
