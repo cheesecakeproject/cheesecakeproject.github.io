@@ -144,7 +144,7 @@ button:active {
     </style>
 </head>
 <body>
-    <audio id="beepSound" src="beep.wav" preload="auto"></audio>
+    <audio id="beepSound" src="/gadgets/timer/beep.wav" preload="auto"></audio>
     <div class="clock">
         <div class="digit" id="minutesTens">0</div>
         <div class="digit" id="minutesOnes">0</div>
@@ -227,7 +227,7 @@ button:active {
 
         function playBeep() {
             "use strict";
-            var beepSound = document.getElementById('beep.wav');
+            var beepSound = document.getElementById('beepSound');
             beepSound.currentTime = 0;
             beepSound.play().catch(error => {
                 console.error("Error playing sound :", error);
