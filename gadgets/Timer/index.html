@@ -226,6 +226,7 @@ button:active {
         }
 
         function playBeep() {
+            "use strict";
             const beepSound = document.getElementById('beepSound');
             beepSound.currentTime = 0;
             beepSound.play().catch(error => {
