@@ -1,0 +1,4144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BenchMaster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#4b4ba8',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        .chart-bar {
+            transition: height 1s ease-out;
+        }
+        
+        #test-object {
+            transition: left 0.1s linear;
+        }
+        
+        #log::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #log::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+        
+        #log::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        /* Export modal styles */
+        .export-modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .export-modal-content {
+            position: relative;
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .dark .export-modal-content {
+            background-color: #333;
+            color: #fff;
+        }
+        
+        .export-content {
+            max-height: 60vh;
+            overflow-y: auto;
+            margin-top: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .dark .export-content {
+            background-color: #222;
+            color: #eee;
+        }
+        
+        .export-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+    <!-- Loading screen -->
+    <div id="loading" class="fixed inset-0 flex items-center justify-center bg-white z-50">
+        <div class="text-center">
+            <div class="w-12 h-12 border-4 border-gray-200 border-t-primary rounded-full animate-spin mx-auto"></div>
+            <p class="mt-3 text-lg" id="loading-text">Initializing analyzer...</p>
+        </div>
+    </div>
+
+    <div class="max-w-3xl mx-auto px-4 py-4">
+        <h1 class="text-xl font-bold text-center mb-4">BenchMaster</h1>
+        
+        <!-- Canvas container -->
+        <div class="bg-black rounded overflow-hidden mb-4 relative" id="canvas-container">
+            <div class="absolute top-2 left-2 bg-black/70 p-2 rounded text-white text-xs z-10" id="status-panel">
+                <div>Status: Ready</div>
+                <div>Objects: <span id="object-count">0</span></div>
+                <div>FPS: <span id="fps-counter">0</span></div>
+            </div>
+            <canvas id="render-canvas" class="w-full h-[180px]"></canvas>
+        </div>
+        
+        <!-- Progress bar -->
+        <div class="h-4 bg-gray-100 rounded overflow-hidden mb-2">
+            <div id="progress-bar" class="h-full bg-primary text-xs font-medium text-white text-center leading-4 rounded transition-all duration-300" style="width: 0%">Ready</div>
+        </div>
+        
+        <!-- Log section -->
+        <div id="log" class="h-[60px] overflow-y-auto bg-white text-xs font-mono p-2 rounded border border-gray-200 mb-3"></div>
+        
+        <!-- Start button -->
+        <button id="start-test" class="w-full py-2 px-4 bg-primary hover:bg-secondary text-white font-medium rounded mb-4">Start Performance Analysis</button>
+        
+        <!-- Results panel -->
+        <div id="results" class="bg-white rounded border border-gray-200 p-3 hidden">
+            <h2 class="text-lg font-bold text-center mb-3">Analysis Results</h2>
+            
+            <!-- Overall score and export button -->
+            <div class="flex flex-col sm:flex-row items-center justify-between mb-3">
+                <div class="text-2xl font-bold text-primary">
+                    Performance Index: <span id="overall-score">0</span>/100
+                </div>
+                <button id="export-results" class="mt-2 sm:mt-0 py-1 px-3 bg-primary hover:bg-secondary text-white text-sm font-medium rounded flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export Results
+                </button>
+            </div>
+            
+            <!-- Tab navigation -->
+            <div class="flex mb-3 border-b border-gray-200">
+                <button class="tab-btn active px-3 py-1 font-medium border-b-2 border-primary" data-tab="overview">Overview</button>
+                <button class="tab-btn px-3 py-1 font-medium border-b-2 border-transparent" data-tab="graphics">Graphics</button>
+                <button class="tab-btn px-3 py-1 font-medium border-b-2 border-transparent" data-tab="processor">Processor</button>
+                <button class="tab-btn px-3 py-1 font-medium border-b-2 border-transparent" data-tab="features">Features</button>
+            </div>
+            
+            <!-- Overview Tab -->
+            <div class="tab-content block" id="overview-tab">
+                <div class="bg-white rounded p-2 mb-3 border border-gray-200">
+                    <h3 class="font-medium mb-1">Device Profile</h3>
+                    <div class="grid grid-cols-2 gap-1 text-sm">
+                        <div class="font-medium">Device Type:</div>
+                        <div id="device-type">-</div>
+                        <div class="font-medium">Performance Tier:</div>
+                        <div id="performance-tier">-</div>
+                        <div class="font-medium">Comparable Devices:</div>
+                        <div id="comparable-devices">-</div>
+                    </div>
+                </div>
+                
+                <!-- Score cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                    <div class="bg-white p-2 rounded text-center border border-gray-200">
+                        <div id="graphics-score" class="text-xl font-bold text-primary">0</div>
+                        <div class="text-xs text-gray-600">Graphics</div>
+                    </div>
+                    <div class="bg-white p-2 rounded text-center border border-gray-200">
+                        <div id="processor-score" class="text-xl font-bold text-primary">0</div>
+                        <div class="text-xs text-gray-600">Processor</div>
+                    </div>
+                    <div class="bg-white p-2 rounded text-center border border-gray-200">
+                        <div id="memory-display" class="text-xl font-bold text-primary">0</div>
+                        <div class="text-xs text-gray-600">Memory</div>
+                    </div>
+                    <div class="bg-white p-2 rounded text-center border border-gray-200">
+                        <div id="display-score" class="text-xl font-bold text-primary">0</div>
+                        <div class="text-xs text-gray-600">Display</div>
+                    </div>
+                </div>
+                
+                <!-- Throttling warning -->
+                <div id="throttling-warning" class="hidden bg-amber-50 border-l-4 border-amber-500 p-2 mb-2 rounded-r">
+                    <p class="text-xs text-amber-700">
+                        <span class="font-medium">Performance throttling detected!</span> Your device may be thermal throttling or running in power-saving mode.
+                    </p>
+                </div>
+                
+                <p id="performance-recommendation" class="text-xs"></p>
+            </div>
+            
+            <!-- Graphics Tab -->
+            <div class="tab-content hidden" id="graphics-tab">
+                <div class="bg-white rounded p-2 mb-2 border border-gray-200">
+                    <h3 class="font-medium mb-1">3D Graphics Performance</h3>
+                    <div id="gpu-chart" class="h-24 mb-2 relative"></div>
+                    <div class="grid grid-cols-2 gap-1 text-xs">
+                        <div class="font-medium">Max Objects:</div>
+                        <div id="max-objects">0</div>
+                        <div class="font-medium">Rendering Score:</div>
+                        <div id="rendering-score">0/100</div>
+                        <div class="font-medium">Geometry Processing:</div>
+                        <div id="geometry-score">0/100</div>
+                        <div class="font-medium">Shader Performance:</div>
+                        <div id="shader-score">0/100</div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded p-2 border border-gray-200">
+                    <h3 class="font-medium mb-1">Display Capabilities</h3>
+                    <div class="grid grid-cols-2 gap-1 text-xs">
+                        <div class="font-medium">Refresh Rate:</div>
+                        <div id="refresh-rate">-</div>
+                        <div class="font-medium">Animation Smoothness:</div>
+                        <div id="animation-score">0/100</div>
+                        <div class="font-medium">Color Depth:</div>
+                        <div id="color-depth">-</div>
+                        <div class="font-medium">Pixel Density:</div>
+                        <div id="pixel-density">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Processor Tab -->
+            <div class="tab-content hidden" id="processor-tab">
+                <div class="bg-white rounded p-2 mb-2 border border-gray-200">
+                    <h3 class="font-medium mb-1">CPU Performance</h3>
+                    <div class="grid grid-cols-2 gap-1 text-xs">
+                        <div class="font-medium">CPU Performance:</div>
+                        <div id="cpu-score">0/100</div>
+                        <div class="font-medium">String Processing:</div>
+                        <div id="string-score">0/100</div>
+                        <div class="font-medium">JSON Processing:</div>
+                        <div id="json-score">0/100</div>
+                        <div class="font-medium">Math Operations:</div>
+                        <div id="math-score">0/100</div>
+                        <div class="font-medium">Crypto Operations:</div>
+                        <div id="crypto-score">0/100</div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded p-2 border border-gray-200">
+                    <h3 class="font-medium mb-1">Memory & Storage</h3>
+                    <div class="grid grid-cols-2 gap-1 text-xs">
+                        <div class="font-medium">Memory Operations:</div>
+                        <div id="memory-score">0/100</div>
+                        <div class="font-medium">Memory Bandwidth:</div>
+                        <div id="memory-bandwidth">0 MB/s</div>
+                        <div class="font-medium">Garbage Collection:</div>
+                        <div id="gc-score">0/100</div>
+                        <div class="font-medium">Storage Limit:</div>
+                        <div id="storage-limit">-</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Features Tab -->
+            <div class="tab-content hidden" id="features-tab">
+                <div class="mb-2">
+                    <h3 class="font-medium mb-1">Hardware Features</h3>
+                    <div class="flex flex-wrap gap-1" id="hardware-features"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <!-- Network -->
+                    <div class="bg-white rounded p-2 border border-gray-200">
+                        <h3 class="font-medium mb-1">Network</h3>
+                        <div class="grid grid-cols-2 gap-1 text-xs">
+                            <div class="font-medium">Network Score:</div>
+                            <div id="network-score">0/100</div>
+                            <div class="font-medium">Download Speed:</div>
+                            <div id="download-speed">-</div>
+                            <div class="font-medium">Network Latency:</div>
+                            <div id="network-latency">-</div>
+                            <div class="font-medium">Connection Type:</div>
+                            <div id="connection-type">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sensors & Battery -->
+                    <div class="bg-white rounded p-2 border border-gray-200">
+                        <h3 class="font-medium mb-1">Sensors & Input</h3>
+                        <div class="grid grid-cols-2 gap-1 text-xs">
+                            <div class="font-medium">Available Sensors:</div>
+                            <div id="sensor-list" class="break-words">-</div>
+                            <div class="font-medium">Battery Status:</div>
+                            <div id="battery-status">-</div>
+                            <div class="font-medium">Touch Response:</div>
+                            <div id="touch-score">0/100</div>
+                            <div class="font-medium">Input Lag:</div>
+                            <div id="input-lag">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Browser Capabilities -->
+                    <div class="bg-white rounded p-2 border border-gray-200">
+                        <h3 class="font-medium mb-1">Browser Capabilities</h3>
+                        <div class="grid grid-cols-2 gap-1 text-xs">
+                            <div class="font-medium">WebGL Support:</div>
+                            <div id="webgl-support">-</div>
+                            <div class="font-medium">WebAssembly:</div>
+                            <div id="wasm-support">-</div>
+                            <div class="font-medium">WebRTC:</div>
+                            <div id="webrtc-support">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Audio Capabilities -->
+                    <div class="bg-white rounded p-2 border border-gray-200">
+                        <h3 class="font-medium mb-1">Audio Capabilities</h3>
+                        <div class="grid grid-cols-2 gap-1 text-xs">
+                            <div class="font-medium">Audio Processing:</div>
+                            <div id="audio-score">0/100</div>
+                            <div class="font-medium">Audio Formats:</div>
+                            <div id="audio-formats">-</div>
+                            <div class="font-medium">Audio Latency:</div>
+                            <div id="audio-latency">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="export-modal" class="export-modal">
+        <div class="export-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Export Results</h3>
+                <button id="close-export-modal" class="text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <p class="mb-2 text-sm">Select export format:</p>
+                <div class="flex space-x-2">
+                    <button id="export-pdf" class="py-1 px-3 bg-primary hover:bg-secondary text-white text-sm font-medium rounded">PDF</button>
+                    <button id="export-markdown" class="py-1 px-3 bg-primary hover:bg-secondary text-white text-sm font-medium rounded">Markdown</button>
+                    <button id="export-txt" class="py-1 px-3 bg-primary hover:bg-secondary text-white text-sm font-medium rounded">Text</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <center>
+        <p class="text-xs text-gray-500 mt-4 mb-6 max-w-lg mx-auto">
+        Disclaimer: BenchMaster provides powerful accuracy through advanced detection algorithms. While we strive for precision, benchmarking results may vary between test runs due to system conditions. WE DO NOT GUARANTEED ANY FULLY ACCURACY RESULTS. BenchMaster is not responsible for any damage or loss caused by the use of this tool. Use at your own risk.
+        </p>
+        <p class="text-xs text-gray-500 mt-4 mb-6 max-w-lg mx-auto">
+            A part of the Cheesecake Project. Under the terms of use and privacy policy of the Cheesecake Project.
+        </p>
+    </center>
+    <script>
+        // Performance test variables
+        let scene, camera, renderer;
+        let objects = [];
+        let lastFrameTime = 0;
+        let frameCount = 0;
+        let fpsValues = [];
+        let isTestRunning = false;
+        let currentStage = 'none';
+        let currentObjectCount = 0;
+        let maxTestedObjects = 0;
+        let lastFpsAverage = 0;
+        let peakFps = 0;
+        
+        // Test scores
+        let renderingScore = 0;
+        let geometryScore = 0;
+        let shaderScore = 0;
+        let particleScore = 0;
+        let cpuScore = 0;
+        let stringScore = 0;
+        let jsonScore = 0;
+        let mathScore = 0;
+        let cryptoScore = 0;
+        let memoryScore = 0;
+        let gcScore = 0;
+        let animationScore = 0;
+        let audioScore = 0;
+        let touchScore = 0;
+        let networkScore = 0;
+        let displayScore = 0;
+        
+        // Additional test results
+        let cpuComputeTime = 0;
+        let memoryBandwidth = 0;
+        let refreshRate = 0;
+        let inputLag = 0;
+        let colorDepth = '';
+        let pixelDensity = '';
+        let audioLatency = 0;
+        let audioFormats = [];
+        let downloadSpeed = 0;
+        let networkLatency = 0;
+        let connectionType = '';
+        let storageLimit = '';
+        let batteryStatus = {};
+        let throttlingDetected = false;
+        
+        // Feature detection results
+        let hardwareFeatures = {};
+        let sensorList = [];
+        let webglSupport = 'Unknown';
+        let wasmSupport = false;
+        let webrtcSupport = false;
+        
+        // Test configuration
+        const MIN_ACCEPTABLE_FPS = 24;
+        const START_OBJECT_COUNT = 100;
+        const MAX_POSSIBLE_OBJECTS = 100000;
+        
+        // Performance test increment strategy
+        const incrementSteps = [
+            { until: 1000, step: 100 },
+            { until: 5000, step: 400 },
+            { until: 20000, step: 1000 },
+            { until: Infinity, step: 5000 }
+        ];
+        
+        // Elements
+        const fpsCounter = document.getElementById('fps-counter');
+        const objectCounter = document.getElementById('object-count');
+        const startButton = document.getElementById('start-test');
+        const progressBar = document.getElementById('progress-bar');
+        const statusPanel = document.getElementById('status-panel');
+        const logElement = document.getElementById('log');
+        const resultsPanel = document.getElementById('results');
+        
+        // Export modal elements
+        const exportButton = document.getElementById('export-results');
+        const exportModal = document.getElementById('export-modal');
+        const closeExportModal = document.getElementById('close-export-modal');
+        const exportPdfButton = document.getElementById('export-pdf');
+        const exportMarkdownButton = document.getElementById('export-markdown');
+        const exportTxtButton = document.getElementById('export-txt');
+        const exportContentContainer = document.getElementById('export-content-container');
+        const exportContent = document.getElementById('export-content');
+        const exportInstructions = document.getElementById('export-instructions');
+        
+        // Device profile database for matching performance fingerprints
+        const deviceProfiles = [
+            {
+                type: "High-End Flagship Phone",
+                renderingRange: [85, 100],
+                cpuRange: [85, 100],
+                tier: "Premium Flagship",
+                examples: "iPhone 14 Pro/15, Samsung S22/S23 Ultra, Google Pixel 7 Pro/8"
+            },
+            {
+                type: "Mid-Range Flagship Phone",
+                renderingRange: [70, 84],
+                cpuRange: [70, 84],
+                tier: "Flagship",
+                examples: "iPhone 13/12, Samsung S21, Google Pixel 6, OnePlus 9"
+            },
+            {
+                type: "High-End Mid-Range Phone",
+                renderingRange: [55, 69],
+                cpuRange: [55, 69],
+                tier: "Upper Mid-Range",
+                examples: "iPhone 11/XR, Samsung A73/A53, Google Pixel 5a/4a 5G"
+            },
+            {
+                type: "Mid-Range Phone",
+                renderingRange: [40, 54],
+                cpuRange: [40, 54],
+                tier: "Mid-Range",
+                examples: "iPhone X/8, Samsung A52/A42, Xiaomi Redmi Note 10"
+            },
+            {
+                type: "Entry-Level Phone",
+                renderingRange: [20, 39],
+                cpuRange: [20, 39],
+                tier: "Budget",
+                examples: "iPhone 7/6s, Samsung A32/A22, Budget Android phones"
+            },
+            {
+                type: "Basic Phone",
+                renderingRange: [0, 19],
+                cpuRange: [0, 19],
+                tier: "Entry-Level",
+                examples: "Budget phones, older models (iPhone 6/5s, basic Android)"
+            },
+            {
+                type: "High-End Desktop/Laptop",
+                renderingRange: [90, 100],
+                cpuRange: [90, 100],
+                tier: "Gaming/Professional",
+                examples: "Gaming PC, MacBook Pro M2/M3, high-end workstations"
+            },
+            {
+                type: "Mid-Range Desktop/Laptop",
+                renderingRange: [70, 89],
+                cpuRange: [70, 89],
+                tier: "Mainstream",
+                examples: "MacBook Air M1/M2, mid-range Windows laptops"
+            },
+            {
+                type: "Budget Desktop/Laptop",
+                renderingRange: [40, 69],
+                cpuRange: [40, 69],
+                tier: "Budget",
+                examples: "Older MacBooks, budget Windows laptops, Chromebooks"
+            },
+            {
+                type: "Basic Desktop/Laptop",
+                renderingRange: [0, 39],
+                cpuRange: [0, 39],
+                tier: "Entry-Level/Older",
+                examples: "Older computers, netbooks, basic Chromebooks"
+            }
+        ];
+        
+        // Initialize Three.js scene
+        function initThree() {
+            try {
+                log("Initializing 3D rendering engine...");
+                const container = document.getElementById('canvas-container');
+                
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x000000);
+                
+                // Camera
+                camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                camera.position.z = 50;
+                
+                // Renderer - with error handling
+                try {
+                    renderer = new THREE.WebGLRenderer({ 
+                        canvas: document.getElementById('render-canvas'),
+                        antialias: true
+                    });
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                    
+                    // Check WebGL support safely
+                    checkWebGLSupport();
+                    
+                    // Add lighting
+                    const ambientLight = new THREE.AmbientLight(0x404040);
+                    scene.add(ambientLight);
+                    
+                    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                    directionalLight.position.set(1, 1, 1);
+                    scene.add(directionalLight);
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        const width = container.clientWidth;
+                        const height = container.clientHeight;
+                        camera.aspect = width / height;
+                        camera.updateProjectionMatrix();
+                        renderer.setSize(width, height);
+                    });
+                    
+                    log("3D rendering engine initialized successfully");
+                    
+                    // Start animation loop
+                    animate(0);
+                    return true;
+                } catch (e) {
+                    log(`WebGL renderer initialization error: ${e.message}`);
+                    webglSupport = "Not supported";
+                    return false;
+                }
+            } catch (e) {
+                log(`Three.js initialization error: ${e.message}`);
+                return false;
+            }
+        }
+        
+        // Check WebGL support safely
+        function checkWebGLSupport() {
+            try {
+                if (!renderer) {
+                    webglSupport = "Not initialized";
+                    return;
+                }
+                
+                const gl = renderer.getContext();
+                
+                if (!gl) {
+                    webglSupport = "Not supported";
+                    return;
+                }
+                
+                // Basic WebGL info without using extensions
+                let vendor = "Unknown";
+                let rendererInfo = "Unknown";
+                
+                try {
+                    vendor = gl.getParameter(gl.VENDOR);
+                    rendererInfo = gl.getParameter(gl.RENDERER);
+                } catch (e) {
+                    log(`Basic WebGL info error: ${e.message}`);
+                }
+                
+                // Try to get detailed info if available
+                try {
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (debugInfo) {
+                        vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                        rendererInfo = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                    }
+                } catch (e) {
+                    log(`WebGL extension info error: ${e.message}`);
+                }
+                
+                webglSupport = `${vendor} - ${rendererInfo}`;
+                
+                // Check WebGL version safely
+                if (gl instanceof WebGLRenderingContext) {
+                    webglSupport += " (WebGL 1.0)";
+                } else if (gl instanceof WebGL2RenderingContext) {
+                    webglSupport += " (WebGL 2.0)";
+                }
+                
+                log(`WebGL support: ${webglSupport}`);
+            } catch (e) {
+                webglSupport = "Error detecting WebGL";
+                log(`WebGL detection error: ${e.message}`);
+            }
+        }
+        
+        // Animation loop
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            
+            try {
+                // Calculate FPS
+                if (lastFrameTime) {
+                    const deltaTime = timestamp - lastFrameTime;
+                    const fps = 1000 / deltaTime;
+                    
+                    // Update FPS counter every 10 frames to reduce DOM updates
+                    frameCount++;
+                    if (frameCount >= 10) {
+                        fpsCounter.textContent = Math.round(fps);
+                        frameCount = 0;
+                    }
+                    
+                    // Store FPS values for averaging if test is running
+                    if (isTestRunning && currentStage === 'rendering') {
+                        fpsValues.push(fps);
+                        
+                        // Compute average FPS every 3 seconds
+                        if (fpsValues.length >= 180) { // ~3 seconds at 60fps
+                            lastFpsAverage = calculateAverageFps();
+                            checkFpsThresholdAndProgress();
+                            
+                            // Track peak FPS
+                            if (lastFpsAverage > peakFps) {
+                                peakFps = lastFpsAverage;
+                            }
+                            
+                            // Clear for next measurement
+                            fpsValues = [];
+                        }
+                    }
+                }
+                lastFrameTime = timestamp;
+                
+                // Animate objects
+                objects.forEach(obj => {
+                    if (obj.rotation) {
+                        obj.rotation.x += 0.005;
+                        obj.rotation.y += 0.01;
+                    }
+                });
+                
+                // Render scene if renderer exists
+                if (renderer) {
+                    renderer.render(scene, camera);
+                }
+            } catch (e) {
+                log(`Animation error: ${e.message}`);
+            }
+        }
+        
+        // Create multiple objects
+        function createObjects(count) {
+            log(`Creating ${count} objects...`);
+            updateStatus(`Creating ${count} objects...`);
+            
+            const startTime = performance.now();
+            
+            try {
+                // Clear existing objects
+                objects.forEach(obj => scene.remove(obj));
+                objects = [];
+                
+                // Generate geometries and materials in advance for reuse
+                const geometries = [
+                    new THREE.SphereGeometry(0.5, 8, 8),
+                    new THREE.BoxGeometry(0.8, 0.8, 0.8),
+                    new THREE.TetrahedronGeometry(0.7)
+                ];
+                
+                const materials = [];
+                for (let i = 0; i < 10; i++) {
+                    materials.push(new THREE.MeshPhongMaterial({
+                        color: Math.random() * 0xffffff,
+                        wireframe: Math.random() > 0.7,
+                        shininess: Math.random() * 100
+                    }));
+                }
+                
+                // Add new objects in batches to prevent UI freezing
+                const batchSize = Math.min(1000, count);
+                let created = 0;
+                
+                function createBatch() {
+                    const batchEnd = Math.min(created + batchSize, count);
+                    
+                    for (let i = created; i < batchEnd; i++) {
+                        // Select random geometry and material
+                        const geometry = geometries[Math.floor(Math.random() * geometries.length)];
+                        const material = materials[Math.floor(Math.random() * materials.length)];
+                        
+                        const mesh = new THREE.Mesh(geometry, material);
+                        
+                        // Random position within a sphere volume
+                        const radius = 40;
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        const distance = Math.cbrt(Math.random()) * radius; // Cube root for uniform distribution in volume
+                        
+                        mesh.position.x = distance * Math.sin(phi) * Math.cos(theta);
+                        mesh.position.y = distance * Math.sin(phi) * Math.sin(theta);
+                        mesh.position.z = distance * Math.cos(phi);
+                        
+                        // Random rotation
+                        mesh.rotation.x = Math.random() * Math.PI * 2;
+                        mesh.rotation.y = Math.random() * Math.PI * 2;
+                        mesh.rotation.z = Math.random() * Math.PI * 2;
+                        
+                        // Random scale
+                        const scale = 0.5 + Math.random() * 0.5;
+                        mesh.scale.set(scale, scale, scale);
+                        
+                        scene.add(mesh);
+                        objects.push(mesh);
+                    }
+                    
+                    created = batchEnd;
+                    currentObjectCount = created;
+                    objectCounter.textContent = created.toLocaleString();
+                    
+                    // Update progress if still creating
+                    if (created < count) {
+                        // Calculate progress percentage (5% of total for object creation)
+                        const progressPercent = Math.min(5, (5 * created / count));
+                        updateProgress(progressPercent);
+                        
+                        // Schedule next batch with timeout to allow UI to update
+                        setTimeout(createBatch, 0);
+                    } else {
+                        const elapsed = performance.now() - startTime;
+                        log(`Finished creating ${count} objects in ${elapsed.toFixed(0)}ms`);
+                        updateStatus(`Testing performance with ${count} objects`);
+                    }
+                }
+                
+                // Start creating objects in batches
+                createBatch();
+            } catch (e) {
+                log(`Error creating objects: ${e.message}`);
+                
+                // If we can't create objects, skip to next test
+                maxTestedObjects = 0;
+                renderingScore = 0;
+                updateProgress(5);
+                runGeometryTest();
+            }
+        }
+        
+        // Calculate average FPS from collected values
+        function calculateAverageFps() {
+            try {
+                // Remove outliers to get more stable results
+                const sorted = [...fpsValues].sort((a, b) => a - b);
+                const trimCount = Math.floor(sorted.length * 0.1);
+                const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
+                
+                const avg = trimmed.reduce((sum, val) => sum + val, 0) / trimmed.length;
+                return Math.round(avg);
+            } catch (e) {
+                log(`Error calculating average FPS: ${e.message}`);
+                return 30; // Default fallback value
+            }
+        }
+        
+        // Check if FPS has dropped below threshold and handle test progression
+        function checkFpsThresholdAndProgress() {
+            log(`Current object count: ${currentObjectCount}, Average FPS: ${lastFpsAverage}`);
+            
+            // If FPS is too low, we've hit the device limit
+            if (lastFpsAverage < MIN_ACCEPTABLE_FPS) {
+                log(`FPS dropped below threshold (${MIN_ACCEPTABLE_FPS}). Device limit reached at ${currentObjectCount} objects.`);
+                maxTestedObjects = currentObjectCount;
+                
+                // Calculate 3D rendering score
+                calculateRenderingScore();
+                
+                // Move to geometry test
+                updateProgress(10);
+                runGeometryTest();
+                return;
+            }
+            
+            // Otherwise, increase object count
+            const nextCount = getNextObjectCount(currentObjectCount);
+            
+            // If we've reached our maximum test limit
+            if (nextCount > MAX_POSSIBLE_OBJECTS) {
+                log(`Reached maximum test object count: ${MAX_POSSIBLE_OBJECTS}`);
+                maxTestedObjects = MAX_POSSIBLE_OBJECTS;
+                
+                // Calculate 3D rendering score (perfect score since we hit the limit)
+                renderingScore = 100; 
+                
+                // Move to geometry test
+                updateProgress(10);
+                runGeometryTest();
+                return;
+            }
+            
+            // Continue with more objects
+            createObjects(nextCount);
+        }
+        
+        // Determine next count based on increment strategy
+        function getNextObjectCount(current) {
+            for (const { until, step } of incrementSteps) {
+                if (current < until) {
+                    return current + step;
+                }
+            }
+            return current + 5000; // Default increment
+        }
+        
+        // Calculate 3D rendering score based on maximum objects rendered
+        function calculateRenderingScore() {
+            try {
+                // Log scale makes more sense for scoring as difference between low and high-end
+                // devices can be orders of magnitude
+                const maxScore = 100;
+                const minObjects = 100;
+                const maxObjects = 50000;
+                
+                const logMin = Math.log(minObjects);
+                const logMax = Math.log(maxObjects);
+                const logCurrent = Math.log(Math.max(minObjects, maxTestedObjects));
+                
+                renderingScore = Math.round((logCurrent - logMin) / (logMax - logMin) * maxScore);
+                renderingScore = Math.min(100, Math.max(0, renderingScore));
+                
+                log(`3D Rendering score: ${renderingScore}/100 (max objects: ${maxTestedObjects})`);
+            } catch (e) {
+                log(`Error calculating rendering score: ${e.message}`);
+                renderingScore = Math.min(50, Math.round(maxTestedObjects / 1000)); // Fallback
+            }
+        }
+        
+        // Run geometry processing test
+        function runGeometryTest() {
+            log("Starting geometry processing test...");
+            currentStage = 'geometry';
+            updateStatus("Testing geometry processing...");
+            
+            try {
+                if (!renderer) {
+                    log("WebGL not available, skipping geometry test");
+                    geometryScore = 0;
+                    updateProgress(15);
+                    runShaderTest();
+                    return;
+                }
+                
+                // Clear previous objects
+                objects.forEach(obj => scene.remove(obj));
+                objects = [];
+                
+                // Create a complex geometry
+                const startTime = performance.now();
+                
+                // Create a more complex geometry - subdivided icosahedron (similar to sphere but with triangular faces)
+                const radius = 20;
+                const detail = 4; // Level of subdivision
+                const geometry = new THREE.IcosahedronGeometry(radius, detail);
+                
+                // Create material
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    wireframe: true,
+                    wireframeLinewidth: 1
+                });
+                
+                // Create mesh
+                const mesh = new THREE.Mesh(geometry, material);
+                scene.add(mesh);
+                objects.push(mesh);
+                
+                // Measure time to create the geometry
+                const geometryCreateTime = performance.now() - startTime;
+                log(`Created complex geometry in ${geometryCreateTime.toFixed(2)}ms`);
+                
+                // Measure FPS with this complex geometry
+                fpsValues = [];
+                
+                function animateGeometry() {
+                    // Rotate geometry
+                    mesh.rotation.x += 0.01;
+                    mesh.rotation.y += 0.01;
+                    
+                    // Collect FPS data
+                    if (lastFrameTime) {
+                        const now = performance.now();
+                        const deltaTime = now - lastFrameTime;
+                        const fps = 1000 / deltaTime;
+                        fpsValues.push(fps);
+                    }
+                    
+                    // Continue until we have enough samples
+                    if (fpsValues.length < 120) { // ~2 seconds
+                        requestAnimationFrame(animateGeometry);
+                    } else {
+                        const avgFps = calculateAverageFps();
+                        log(`Geometry test completed with average FPS: ${avgFps}`);
+                        
+                        // Calculate geometry score based on both creation time and rendering FPS
+                        calculateGeometryScore(geometryCreateTime, avgFps);
+                        
+                        // Move to shader test
+                        updateProgress(15);
+                        runShaderTest();
+                    }
+                }
+                
+                // Start animating
+                animateGeometry();
+                
+            } catch (e) {
+                log(`Geometry test error: ${e.message}`);
+                geometryScore = 0;
+                updateProgress(15);
+                runShaderTest(); // Continue to next test
+            }
+        }
+        
+        // Calculate geometry score
+        function calculateGeometryScore(createTime, fps) {
+            try {
+                // Weight: 40% creation time, 60% rendering FPS
+                
+                // Creation time score
+                const maxTime = 1000; // ms (slowest expected)
+                const minTime = 50;   // ms (fastest expected)
+                const timeScore = 100 * (1 - (Math.min(Math.max(createTime, minTime), maxTime) - minTime) / (maxTime - minTime));
+                
+                // FPS score
+                const minFps = 15;
+                const maxFps = 60;
+                const fpsScore = 100 * (Math.min(Math.max(fps, minFps), maxFps) - minFps) / (maxFps - minFps);
+                
+                // Combined score
+                geometryScore = Math.round(timeScore * 0.4 + fpsScore * 0.6);
+                geometryScore = Math.min(100, Math.max(0, geometryScore));
+                
+                log(`Geometry Processing score: ${geometryScore}/100`);
+            } catch (e) {
+                log(`Error calculating geometry score: ${e.message}`);
+                geometryScore = 50; // Default fallback
+            }
+        }
+        
+        // Run shader test
+        function runShaderTest() {
+            log("Starting shader test...");
+            currentStage = 'shader';
+            updateStatus("Testing shader performance...");
+            
+            try {
+                if (!renderer) {
+                    log("WebGL not available, skipping shader test");
+                    shaderScore = 0;
+                    updateProgress(20);
+                    runParticleTest();
+                    return;
+                }
+                
+                // Clear previous objects
+                objects.forEach(obj => scene.remove(obj));
+                objects = [];
+                
+                // Create a complex shader
+                const fragmentShader = `
+                    precision highp float;
+                    
+                    uniform float time;
+                    varying vec2 vUv;
+                    
+                    // Complex function to stress GPU
+                    float julia(vec2 z, vec2 c) {
+                        float n = 0.0;
+                        for(int i=0; i<100; i++) {
+                            z = vec2(z.x*z.x - z.y*z.y, 2.0*z.x*z.y) + c;
+                            if(dot(z,z) > 4.0) break;
+                            n += 1.0;
+                        }
+                        return n / 100.0;
+                    }
+                    
+                    void main() {
+                        vec2 uv = vUv * 4.0 - 2.0;
+                        vec2 c = vec2(0.37 + 0.1 * sin(time * 0.1), 0.2 + 0.1 * cos(time * 0.15));
+                        float j = julia(uv, c);
+                        
+                        vec3 color = vec3(0.0);
+                        color = mix(vec3(0.0, 0.2, 0.5), vec3(1.0, 0.8, 0.0), j);
+                        color = mix(color, vec3(0.1, 0.5, 0.3), j*j);
+                        color = mix(color, vec3(0.9, 0.4, 0.1), sqrt(j));
+                        
+                        gl_FragColor = vec4(color, 1.0);
+                    }
+                `;
+                
+                const vertexShader = `
+                    varying vec2 vUv;
+                    
+                    void main() {
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `;
+                
+                // Create shader material
+                const shaderMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        time: { value: 0.0 }
+                    },
+                    vertexShader: vertexShader,
+                    fragmentShader: fragmentShader
+                });
+                
+                // Create a plane using the shader
+                const planeGeometry = new THREE.PlaneGeometry(40, 40);
+                const plane = new THREE.Mesh(planeGeometry, shaderMaterial);
+                scene.add(plane);
+                objects.push(plane);
+                
+                // Run the test
+                fpsValues = [];
+                const startTime = performance.now();
+                
+                function updateShader() {
+                    const now = performance.now();
+                    const elapsed = now - startTime;
+                    
+                    // Update time uniform
+                    plane.material.uniforms.time.value = elapsed * 0.001;
+                    
+                    // Collect FPS
+                    if (lastFrameTime) {
+                        const deltaTime = now - lastFrameTime;
+                        const fps = 1000 / deltaTime;
+                        fpsValues.push(fps);
+                    }
+                    
+                    // Continue for 2 seconds
+                    if (elapsed < 2000) {
+                        requestAnimationFrame(updateShader);
+                    } else {
+                        const avgFps = calculateAverageFps();
+                        log(`Shader test completed with average FPS: ${avgFps}`);
+                        
+                        // Calculate shader score
+                        calculateShaderScore(avgFps);
+                        
+                        // Move to particle test
+                        updateProgress(20);
+                        runParticleTest();
+                    }
+                }
+                
+                // Start test
+                updateShader();
+            } catch (e) {
+                log(`Shader test error: ${e.message}`);
+                shaderScore = 0;
+                updateProgress(20);
+                runParticleTest();
+            }
+        }
+        
+        // Calculate shader score
+        function calculateShaderScore(fps) {
+            try {
+                const maxScore = 100;
+                const minFps = 15;
+                const maxFps = 60;
+                
+                const score = Math.round(maxScore * (Math.min(Math.max(fps, minFps), maxFps) - minFps) / (maxFps - minFps));
+                shaderScore = Math.min(100, Math.max(0, score));
+                
+                log(`Shader Performance score: ${shaderScore}/100 (avg FPS: ${fps})`);
+            } catch (e) {
+                log(`Error calculating shader score: ${e.message}`);
+                shaderScore = 50; // Default fallback
+            }
+        }
+        
+        // Run particle system test
+        function runParticleTest() {
+            log("Starting particle system test...");
+            currentStage = 'particles';
+            updateStatus("Testing particle system...");
+            
+            try {
+                if (!renderer) {
+                    log("WebGL not available, skipping particle test");
+                    particleScore = 0;
+                    updateProgress(25);
+                    detectRefreshRate();
+                    return;
+                }
+                
+                // Clear previous objects
+                objects.forEach(obj => scene.remove(obj));
+                objects = [];
+                
+                // Create particle system
+                const particleCount = 10000;
+                const particles = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                
+                // Create random positions
+                for (let i = 0; i < particleCount; i++) {
+                    // Position
+                    const radius = 30 * Math.cbrt(Math.random()); // Distribute within a sphere
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                    positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                    positions[i * 3 + 2] = radius * Math.cos(phi);
+                    
+                    // Color (rainbow gradient based on distance from center)
+                    const distanceNorm = radius / 30;
+                    colors[i * 3] = 0.5 + 0.5 * Math.sin(distanceNorm * Math.PI * 2);
+                    colors[i * 3 + 1] = 0.5 + 0.5 * Math.sin(distanceNorm * Math.PI * 2 + Math.PI * 2/3);
+                    colors[i * 3 + 2] = 0.5 + 0.5 * Math.sin(distanceNorm * Math.PI * 2 + Math.PI * 4/3);
+                }
+                
+                particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                // Particle material
+                const particleMaterial = new THREE.PointsMaterial({
+                    size: 0.1,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                // Create points system
+                const particleSystem = new THREE.Points(particles, particleMaterial);
+                scene.add(particleSystem);
+                objects.push(particleSystem);
+                
+                // Test performance
+                fpsValues = [];
+                const startTime = performance.now();
+                
+                function animateParticles() {
+                    const now = performance.now();
+                    const elapsed = now - startTime;
+                    const time = elapsed * 0.001;
+                    
+                    // Animate particles
+                    const positions = particleSystem.geometry.attributes.position.array;
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const ix = i * 3;
+                        const iy = i * 3 + 1;
+                        const iz = i * 3 + 2;
+                        
+                        // Create flowing motion
+                        positions[ix] += Math.sin(time + i * 0.01) * 0.02;
+                        positions[iy] += Math.cos(time + i * 0.01) * 0.02;
+                        positions[iz] += Math.sin(time * 0.5 + i * 0.01) * 0.02;
+                    }
+                    
+                    particleSystem.geometry.attributes.position.needsUpdate = true;
+                    
+                    // Collect FPS
+                    if (lastFrameTime) {
+                        const deltaTime = now - lastFrameTime;
+                        const fps = 1000 / deltaTime;
+                        fpsValues.push(fps);
+                    }
+                    
+                    // Continue for 2 seconds
+                    if (elapsed < 2000) {
+                        requestAnimationFrame(animateParticles);
+                    } else {
+                        const avgFps = calculateAverageFps();
+                        log(`Particle test completed with average FPS: ${avgFps}`);
+                        
+                        // Calculate particle score
+                        calculateParticleScore(avgFps);
+                        
+                        // Move to next test
+                        updateProgress(25);
+                        detectRefreshRate();
+                    }
+                }
+                
+                // Start test
+                animateParticles();
+            } catch (e) {
+                log(`Particle test error: ${e.message}`);
+                particleScore = 0;
+                updateProgress(25);
+                detectRefreshRate();
+            }
+        }
+        
+        // Calculate particle score
+        function calculateParticleScore(fps) {
+            try {
+                const maxScore = 100;
+                const minFps = 10;
+                const maxFps = 60;
+                
+                const score = Math.round(maxScore * (Math.min(Math.max(fps, minFps), maxFps) - minFps) / (maxFps - minFps));
+                particleScore = Math.min(100, Math.max(0, score));
+                
+                log(`Particle System score: ${particleScore}/100 (avg FPS: ${fps})`);
+            } catch (e) {
+                log(`Error calculating particle score: ${e.message}`);
+                particleScore = 50; // Default fallback
+            }
+        }
+        
+        // Detect display refresh rate
+        function detectRefreshRate() {
+            log("Detecting display refresh rate...");
+            updateStatus("Detecting display refresh rate...");
+            
+            try {
+                const rates = [];
+                let framesCount = 0;
+                const startTime = performance.now();
+                
+                function countFrames(timestamp) {
+                    framesCount++;
+                    
+                    const elapsed = timestamp - startTime;
+                    
+                    if (elapsed < 1000) { // Collect for 1 second
+                        requestAnimationFrame(countFrames);
+                    } else {
+                        // Calculate refresh rate
+                        const measured = Math.round(framesCount * 1000 / elapsed);
+                        rates.push(measured);
+                        
+                        // If we've measured enough times
+                        if (rates.length >= 3) {
+                            // Find most common value
+                            refreshRate = Math.round(rates.reduce((sum, val) => sum + val, 0) / rates.length);
+                            log(`Display refresh rate: approximately ${refreshRate}Hz`);
+                            
+                            // Continue to animation test
+                            updateProgress(30);
+                            runAnimationTest();
+                        } else {
+                            // Reset and measure again
+                            framesCount = 0;
+                            setTimeout(() => {
+                                requestAnimationFrame(countFrames);
+                            }, 500); // Short pause between measurements
+                        }
+                    }
+                }
+                
+                // Start counting frames
+                requestAnimationFrame(countFrames);
+            } catch (e) {
+                log(`Refresh rate detection error: ${e.message}`);
+                refreshRate = 60; // Default assumption
+                updateProgress(30);
+                runAnimationTest();
+            }
+        }
+        
+        // Test animation smoothness
+        function runAnimationTest() {
+            log("Testing animation smoothness...");
+            updateStatus("Testing animation smoothness...");
+            
+            try {
+                // Create test element
+                const container = document.createElement('div');
+                container.id = 'motion-test';
+                container.style.width = '100%';
+                container.style.height = '100px';
+                container.style.backgroundColor = '#000';
+                container.style.position = 'relative';
+                container.style.borderRadius = '8px';
+                container.style.overflow = 'hidden';
+                container.style.margin = '15px 0';
+                
+                const testObject = document.createElement('div');
+                testObject.id = 'test-object';
+                testObject.style.position = 'absolute';
+                testObject.style.width = '20px';
+                testObject.style.height = '20px';
+                testObject.style.backgroundColor = 'white';
+                testObject.style.borderRadius = '50%';
+                testObject.style.top = '40px';
+                testObject.style.left = '0';
+                
+                container.appendChild(testObject);
+                document.body.appendChild(container);
+                
+                // Run animation
+                const timings = [];
+                const frameDurations = [];
+                let lastTimestamp = 0;
+                let animStartTime = 0;
+                const distance = container.clientWidth - testObject.clientWidth;
+                
+                function animateObject(timestamp) {
+                    if (!animStartTime) animStartTime = timestamp;
+                    const elapsed = timestamp - animStartTime;
+                    
+                    // Record frame timing
+                    if (lastTimestamp) {
+                        frameDurations.push(timestamp - lastTimestamp);
+                    }
+                    lastTimestamp = timestamp;
+                    
+                    // Calculate position (2 second animation)
+                    const progress = Math.min(elapsed / 2000, 1.0);
+                    const position = Math.round(distance * progress);
+                    testObject.style.left = `${position}px`;
+                    
+                    // Continue animation
+                    if (progress < 1.0) {
+                        requestAnimationFrame(animateObject);
+                    } else {
+                        // Clean up
+                        document.body.removeChild(container);
+                        
+                        // Analyze results
+                        analyzeAnimationResults(frameDurations);
+                        
+                        // Continue to color depth test
+                        updateProgress(35);
+                        detectColorDepth();
+                    }
+                }
+                
+                // Start animation
+                requestAnimationFrame(animateObject);
+            } catch (e) {
+                log(`Animation test error: ${e.message}`);
+                animationScore = 50; // Default fallback
+                updateProgress(35);
+                detectColorDepth();
+            }
+        }
+        
+        // Analyze animation results
+        function analyzeAnimationResults(frameDurations) {
+            try {
+                if (frameDurations.length === 0) {
+                    animationScore = 50;
+                    return;
+                }
+                
+                // Calculate statistics
+                const avgDuration = frameDurations.reduce((sum, val) => sum + val, 0) / frameDurations.length;
+                
+                // Calculate jank (variability in frame duration)
+                const variance = frameDurations.reduce((sum, val) => sum + Math.pow(val - avgDuration, 2), 0) / frameDurations.length;
+                const stdDev = Math.sqrt(variance);
+                
+                // Coefficient of variation (lower is better)
+                const cv = stdDev / avgDuration;
+                
+                log(`Animation metrics - Avg frame: ${avgDuration.toFixed(2)}ms, StdDev: ${stdDev.toFixed(2)}ms, CV: ${cv.toFixed(3)}`);
+                
+                // Calculate animation score (100 is perfectly smooth)
+                const normalizedCV = Math.min(cv * 100, 30) / 30;
+                animationScore = Math.round(100 * (1 - normalizedCV));
+                
+                log(`Animation smoothness score: ${animationScore}/100`);
+            } catch (e) {
+                log(`Animation analysis error: ${e.message}`);
+                animationScore = 50; // Default fallback
+            }
+        }
+        
+        // Detect color depth
+        function detectColorDepth() {
+            log("Testing color depth capabilities...");
+            updateStatus("Testing color capabilities...");
+            
+            try {
+                // Create a canvas for testing
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                
+                // Draw gradient
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                gradient.addColorStop(0, 'black');
+                gradient.addColorStop(1, 'white');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, canvas.width, 1);
+                const data = imageData.data;
+                
+                // Count unique colors
+                const uniqueColors = new Set();
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    uniqueColors.add(`${r},${g},${b}`);
+                }
+                
+                // Determine color depth
+                const uniqueCount = uniqueColors.size;
+                
+                if (uniqueCount >= 240) {
+                    colorDepth = '24-bit or higher (True Color)';
+                } else if (uniqueCount >= 200) {
+                    colorDepth = '18-bit (High Color)';
+                } else if (uniqueCount >= 60) {
+                    colorDepth = '16-bit (High Color)';
+                } else {
+                    colorDepth = 'Less than 16-bit (Limited Color)';
+                }
+                
+                log(`Color depth test: ${uniqueCount} unique colors detected, estimated as ${colorDepth}`);
+                
+                // Detect pixel density
+                detectPixelDensity();
+            } catch (e) {
+                log(`Color depth test error: ${e.message}`);
+                colorDepth = 'Unknown';
+                detectPixelDensity();
+            }
+        }
+        
+        // Detect pixel density
+        function detectPixelDensity() {
+            try {
+                // Use device pixel ratio
+                const dpr = window.devicePixelRatio || 1;
+                
+                if (dpr >= 3) {
+                    pixelDensity = 'Very High (3x or more)';
+                } else if (dpr >= 2) {
+                    pixelDensity = 'High (2x)';
+                } else if (dpr >= 1.5) {
+                    pixelDensity = 'Medium-High (1.5x)';
+                } else {
+                    pixelDensity = 'Standard (1x)';
+                }
+                
+                log(`Pixel density: ${dpr.toFixed(2)}, classified as ${pixelDensity}`);
+                
+                // Calculate display score (based on refresh rate, animation smoothness, color depth and pixel density)
+                calculateDisplayScore(refreshRate, animationScore, dpr);
+                
+                // Move to CPU test
+                updateProgress(40);
+                startCpuTest();
+            } catch (e) {
+                log(`Pixel density detection error: ${e.message}`);
+                pixelDensity = 'Unknown';
+                displayScore = 50; // Default fallback
+                updateProgress(40);
+                startCpuTest();
+            }
+        }
+        
+        // Calculate display score
+        function calculateDisplayScore(refreshRate, animScore, pixelRatio) {
+            try {
+                // Refresh rate score (60Hz = 75, 90Hz = 85, 120Hz = 95, 144Hz+ = 100)
+                const refreshScore = Math.min(100, 60 + (refreshRate - 60) / 3);
+                
+                // Pixel ratio score (1x = 60, 1.5x = 75, 2x = 90, 3x+ = 100)
+                const pixelScore = Math.min(100, 60 + (pixelRatio - 1) * 30);
+                
+                // Combine scores (40% animation, 40% refresh rate, 20% pixel density)
+                displayScore = Math.round(animScore * 0.4 + refreshScore * 0.4 + pixelScore * 0.2);
+                
+                log(`Display score: ${displayScore}/100 (Refresh: ${refreshScore}, Animation: ${animScore}, Pixel: ${pixelScore})`);
+            } catch (e) {
+                log(`Error calculating display score: ${e.message}`);
+                displayScore = 50; // Default fallback
+            }
+        }
+        
+        // Start CPU performance test
+        function startCpuTest() {
+            log("Starting CPU performance test...");
+            currentStage = 'cpu';
+            updateStatus("Testing CPU performance...");
+            
+            // We'll run a series of CPU-intensive calculations
+            // and measure how long they take
+            setTimeout(runCpuTest, 100); // Small delay to update UI
+        }
+        
+        // Run CPU test calculations
+        function runCpuTest() {
+            const startTime = performance.now();
+            
+            try {
+                log("Running CPU tests - calculation operations");
+                
+                // Test 1: Large array sorting
+                updateStatus("Testing CPU: Array operations");
+                const arraySize = 100000;
+                const testArray = [];
+                for (let i = 0; i < arraySize; i++) {
+                    testArray.push(Math.random());
+                }
+                testArray.sort((a, b) => a - b);
+                
+                // Test 2: Prime number calculation
+                updateStatus("Testing CPU: Computational operations");
+                const primes = [];
+                function isPrime(num) {
+                    for(let i = 2; i <= Math.sqrt(num); i++) {
+                        if(num % i === 0) return false;
+                    }
+                    return num > 1;
+                }
+                
+                for (let i = 2; i < 10000; i++) {
+                    if (isPrime(i)) primes.push(i);
+                }
+                
+                // Test 3: Matrix operations
+                updateStatus("Testing CPU: Matrix operations");
+                const size = 200;
+                const matrix1 = Array(size).fill().map(() => Array(size).fill().map(() => Math.random()));
+                const matrix2 = Array(size).fill().map(() => Array(size).fill().map(() => Math.random()));
+                const resultMatrix = Array(size).fill().map(() => Array(size).fill(0));
+                
+                // Matrix multiplication (just a portion to not freeze browser)
+                for (let i = 0; i < 50; i++) {
+                    for (let j = 0; j < size; j++) {
+                        for (let k = 0; k < size; k++) {
+                            resultMatrix[i][j] += matrix1[i][k] * matrix2[k][j];
+                        }
+                    }
+                }
+                
+                const cpuElapsed = performance.now() - startTime;
+                cpuComputeTime = cpuElapsed;
+                log(`CPU computation test completed in ${cpuElapsed.toFixed(2)}ms`);
+                
+                // Calculate CPU score
+                calculateCpuScore(cpuElapsed);
+                
+                // Move to String Processing test
+                updateProgress(45);
+                runStringTest();
+                
+            } catch (e) {
+                log(`CPU test error: ${e.message}`);
+                cpuScore = 0;
+                updateProgress(45);
+                runStringTest(); // Continue to next test
+            }
+        }
+        
+        // Calculate CPU score
+        function calculateCpuScore(elapsed) {
+            try {
+                // Based on benchmarks, a high-end CPU might complete in ~100ms
+                // while a low-end one could take 1000ms or more
+                const maxScore = 100;
+                const minTime = 100; // ms (fastest expected)
+                const maxTime = 1000; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                cpuScore = Math.min(100, Math.max(0, score));
+                
+                log(`CPU Performance score: ${cpuScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating CPU score: ${e.message}`);
+                cpuScore = 50; // Default fallback
+            }
+        }
+        
+        // Run string processing test
+        function runStringTest() {
+            log("Starting string processing test...");
+            updateStatus("Testing string processing...");
+            
+            try {
+                const startTime = performance.now();
+                
+                // Create large string
+                const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ";
+                let testString = "";
+                
+                for (let i = 0; i < 100000; i++) {
+                    testString += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                
+                // Process string in different ways
+                // 1. Split and join
+                const words = testString.split(" ");
+                const rejoined = words.join(" ");
+                
+                // 2. Replace
+                const replaced = testString.replace(/a/g, "X").replace(/e/g, "Y").replace(/i/g, "Z");
+                
+                // 3. Search
+                let count = 0;
+                let pos = testString.indexOf("a");
+                while (pos !== -1) {
+                    count++;
+                    pos = testString.indexOf("a", pos + 1);
+                }
+                
+                // 4. Regular expressions
+                const matches = testString.match(/[aeiou]/gi);
+                const matchCount = matches ? matches.length : 0;
+                
+                const elapsed = performance.now() - startTime;
+                log(`String processing test completed in ${elapsed.toFixed(2)}ms`);
+                
+                // Calculate string processing score
+                calculateStringScore(elapsed);
+                
+                // Move to JSON test
+                updateProgress(48);
+                runJsonTest();
+            } catch (e) {
+                log(`String test error: ${e.message}`);
+                stringScore = 0;
+                updateProgress(48);
+                runJsonTest();
+            }
+        }
+        
+        // Calculate string score
+        function calculateStringScore(elapsed) {
+            try {
+                const maxScore = 100;
+                const minTime = 50; // ms (fastest expected)
+                const maxTime = 500; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                stringScore = Math.min(100, Math.max(0, score));
+                
+                log(`String Processing score: ${stringScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating string score: ${e.message}`);
+                stringScore = 50; // Default fallback
+            }
+        }
+        
+        // Run JSON processing test
+        function runJsonTest() {
+            log("Starting JSON processing test...");
+            updateStatus("Testing JSON processing...");
+            
+            try {
+                const startTime = performance.now();
+                
+                // Create complex nested object
+                const createNestedObject = (depth, breadth) => {
+                    if (depth <= 0) return Math.random();
+                    
+                    const obj = {};
+                    for (let i = 0; i < breadth; i++) {
+                        obj[`prop${i}`] = createNestedObject(depth - 1, breadth);
+                    }
+                    return obj;
+                };
+                
+                // Create a complex object
+                const complexObject = createNestedObject(5, 5);
+                
+                // Stringify
+                const jsonString = JSON.stringify(complexObject);
+                
+                // Parse
+                const parsedObject = JSON.parse(jsonString);
+                
+                // Modify and re-stringify
+                const modifyObject = (obj) => {
+                    if (typeof obj !== 'object' || obj === null) return obj * 2;
+                    
+                    const newObj = Array.isArray(obj) ? [] : {};
+                    for (const key in obj) {
+                        newObj[key] = modifyObject(obj[key]);
+                    }
+                    return newObj;
+                };
+                
+                const modifiedObject = modifyObject(parsedObject);
+                const modifiedJson = JSON.stringify(modifiedObject);
+                
+                const elapsed = performance.now() - startTime;
+                log(`JSON processing test completed in ${elapsed.toFixed(2)}ms`);
+                
+                // Calculate JSON processing score
+                calculateJsonScore(elapsed);
+                
+                // Move to Math test
+                updateProgress(51);
+                runMathTest();
+            } catch (e) {
+                log(`JSON test error: ${e.message}`);
+                jsonScore = 0;
+                updateProgress(51);
+                runMathTest();
+            }
+        }
+        
+        // Calculate JSON score
+        function calculateJsonScore(elapsed) {
+            try {
+                const maxScore = 100;
+                const minTime = 20; // ms (fastest expected)
+                const maxTime = 300; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                jsonScore = Math.min(100, Math.max(0, score));
+                
+                log(`JSON Processing score: ${jsonScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating JSON score: ${e.message}`);
+                jsonScore = 50; // Default fallback
+            }
+        }
+        
+        // Run math processing test
+        function runMathTest() {
+            try {
+                log("Testing math processing performance...");
+                updateStatus("Testing math operations...");
+                
+                const startTime = performance.now();
+                
+                // Various math operations
+                let result = 0;
+                
+                // Trigonometry
+                for (let i = 0; i < 50000; i++) {
+                    const angle = (i / 1000) * Math.PI;
+                    result += Math.sin(angle) * Math.cos(angle) * Math.tan(angle);
+                }
+                
+                // Logarithms and powers
+                for (let i = 1; i < 50000; i++) {
+                    result += Math.log(i) + Math.sqrt(i) + Math.pow(i, 0.25);
+                }
+                
+                // Random numbers
+                for (let i = 0; i < 50000; i++) {
+                    result += Math.random() * 2 - 1;
+                }
+                
+                // Complex calculations
+                for (let i = 0; i < 10000; i++) {
+                    const x = Math.random() * 10;
+                    const y = Math.random() * 10;
+                    result += Math.atan2(y, x) * Math.hypot(x, y);
+                }
+                
+                const elapsed = performance.now() - startTime;
+                log(`Math processing test completed in ${elapsed.toFixed(2)}ms with result ${result}`);
+                
+                // Calculate math processing score
+                calculateMathScore(elapsed);
+                
+                // Move to Crypto test
+                updateProgress(54);
+                runCryptoTest();
+                
+            } catch (e) {
+                log(`Math test error: ${e.message}`);
+                mathScore = 0;
+                updateProgress(54);
+                runCryptoTest();
+            }
+        }
+        
+        // Calculate math score
+        function calculateMathScore(elapsed) {
+            try {
+                const maxScore = 100;
+                const minTime = 50; // ms (fastest expected)
+                const maxTime = 500; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                mathScore = Math.min(100, Math.max(0, score));
+                
+                log(`Math Processing score: ${mathScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating math score: ${e.message}`);
+                mathScore = 50; // Default fallback
+            }
+        }
+        
+        // Run crypto operations test
+        function runCryptoTest() {
+            log("Starting cryptographic operations test (security/encryption performance)...");
+            updateStatus("Testing crypto performance...");
+            
+            try {
+                // Check if crypto API is available
+                if (!window.crypto || !window.crypto.subtle) {
+                    log("Crypto API not available, using fallback test");
+                    // Use a fallback test that simulates crypto operations
+                    runFallbackCryptoTest();
+                    return;
+                }
+                
+                const startTime = performance.now();
+                const testData = new Uint8Array(1000000); // 1MB of data
+                
+                // Generate random data
+                window.crypto.getRandomValues(testData);
+                
+                // Promise for crypto operations
+                Promise.all([
+                    // Hash the data with SHA-256
+                    window.crypto.subtle.digest('SHA-256', testData),
+                    
+                    // Generate a key
+                    window.crypto.subtle.generateKey(
+                        {
+                            name: 'AES-GCM',
+                            length: 256
+                        },
+                        true,
+                        ['encrypt', 'decrypt']
+                    ).then(key => 
+                        // Encrypt some data with the key
+                        window.crypto.subtle.encrypt(
+                            {
+                                name: 'AES-GCM',
+                                iv: window.crypto.getRandomValues(new Uint8Array(12))
+                            },
+                            key,
+                            testData.slice(0, 100000) // Use first 100KB
+                        )
+                    )
+                ]).then(() => {
+                    const elapsed = performance.now() - startTime;
+                    log(`Crypto operations completed in ${elapsed.toFixed(2)}ms`);
+                    
+                    // Calculate crypto score
+                    calculateCryptoScore(elapsed);
+                    
+                    // Move to memory test
+                    updateProgress(57);
+                    runMemoryTest();
+                }).catch(error => {
+                    log(`Crypto operations error: ${error.message}`);
+                    // Use fallback test
+                    runFallbackCryptoTest();
+                });
+            } catch (e) {
+                log(`Crypto test setup error: ${e.message}`);
+                // Use fallback test
+                runFallbackCryptoTest();
+            }
+        }
+        
+        // Fallback crypto test using pure JS implementation
+        function runFallbackCryptoTest() {
+            try {
+                log("Running fallback crypto test");
+                const startTime = performance.now();
+                
+                // Simple hash function (djb2)
+                function hashString(str) {
+                    let hash = 5381;
+                    for (let i = 0; i < str.length; i++) {
+                        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+                    }
+                    return hash >>> 0; // Convert to 32bit unsigned
+                }
+                
+                // Create test data
+                const testData = [];
+                for (let i = 0; i < 1000000; i++) {
+                    testData.push(String.fromCharCode(Math.floor(Math.random() * 256)));
+                }
+                const dataString = testData.join('');
+                
+                // Hash chunks of data
+                const chunkSize = 10000;
+                const hashes = [];
+                for (let i = 0; i < dataString.length; i += chunkSize) {
+                    const chunk = dataString.substr(i, chunkSize);
+                    hashes.push(hashString(chunk));
+                }
+                
+                // "Encrypt" data
+                const encrypted = [];
+                for (let i = 0; i < dataString.length; i++) {
+                    const char = dataString.charCodeAt(i);
+                    const key = hashes[Math.floor(i / chunkSize)] % 256;
+                    encrypted.push(String.fromCharCode((char + key) % 256));
+                }
+                
+                const elapsed = performance.now() - startTime;
+                log(`Fallback crypto test completed in ${elapsed.toFixed(2)}ms`);
+                
+                // Calculate score
+                calculateCryptoScore(elapsed);
+                
+                // Move to memory test
+                updateProgress(57);
+                runMemoryTest();
+            } catch (e) {
+                log(`Fallback crypto test error: ${e.message}`);
+                cryptoScore = 50; // Default score
+                updateProgress(57);
+                runMemoryTest();
+            }
+        }
+        
+        // Calculate crypto score
+        function calculateCryptoScore(elapsed) {
+            try {
+                const maxScore = 100;
+                const minTime = 100; // ms (fastest expected)
+                const maxTime = 1000; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                cryptoScore = Math.min(100, Math.max(0, score));
+                
+                log(`Crypto Processing score: ${cryptoScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating crypto score: ${e.message}`);
+                cryptoScore = 50; // Default fallback
+            }
+        }
+        
+        // Run memory operations test
+        function runMemoryTest() {
+            try {
+                log("Testing memory operations...");
+                updateStatus("Testing memory operations...");
+                
+                const startTime = performance.now();
+                
+                // Test memory allocation and access speed
+                const memoryChunks = [];
+                const chunkSize = 100000;
+                const numChunks = 50;
+                
+                // Allocate memory in chunks
+                for (let i = 0; i < numChunks; i++) {
+                    const chunk = new Array(chunkSize);
+                    for (let j = 0; j < chunkSize; j++) {
+                        chunk[j] = j % 256;
+                    }
+                    memoryChunks.push(chunk);
+                }
+                
+                // Access memory in various patterns
+                let sum = 0;
+                
+                // Sequential access
+                for (let i = 0; i < numChunks; i++) {
+                    const chunk = memoryChunks[i];
+                    for (let j = 0; j < chunkSize; j += 100) {
+                        sum += chunk[j];
+                    }
+                }
+                
+                // Random access
+                for (let i = 0; i < 10000; i++) {
+                    const chunkIndex = Math.floor(Math.random() * numChunks);
+                    const itemIndex = Math.floor(Math.random() * chunkSize);
+                    sum += memoryChunks[chunkIndex][itemIndex];
+                }
+                
+                const elapsed = performance.now() - startTime;
+                log(`Memory operations test completed in ${elapsed.toFixed(2)}ms with sum ${sum}`);
+                
+                // Calculate memory score and bandwidth
+                calculateMemoryScore(elapsed);
+                estimateMemoryBandwidth(chunkSize * numChunks * 8, elapsed);
+                
+                // Continue to GC test
+                updateProgress(60);
+                runGCTest();
+                
+            } catch (e) {
+                log(`Memory test error: ${e.message}`);
+                memoryScore = 0;
+                memoryBandwidth = 0;
+                updateProgress(60);
+                runGCTest();
+            }
+        }
+        
+        // Calculate memory score
+        function calculateMemoryScore(elapsed) {
+            try {
+                // Similar scaling to CPU score but adjusted for memory operations
+                const maxScore = 100;
+                const minTime = 50; // ms (fastest expected)
+                const maxTime = 500; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                memoryScore = Math.min(100, Math.max(0, score));
+                
+                log(`Memory Operations score: ${memoryScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating memory score: ${e.message}`);
+                memoryScore = 50; // Default fallback
+            }
+        }
+        
+        // Estimate memory bandwidth
+        function estimateMemoryBandwidth(bytes, timeMs) {
+            try {
+                // Convert to MB/s
+                const mbps = (bytes / (1024 * 1024)) / (timeMs / 1000);
+                memoryBandwidth = Math.round(mbps);
+                
+                log(`Estimated memory bandwidth: ${memoryBandwidth} MB/s`);
+            } catch (e) {
+                log(`Error calculating memory bandwidth: ${e.message}`);
+                memoryBandwidth = 1000; // Default fallback
+            }
+        }
+        
+        // Run garbage collection test
+        function runGCTest() {
+            try {
+                log("Testing garbage collection performance...");
+                updateStatus("Testing memory management...");
+                
+                const startTime = performance.now();
+                
+                // Create and discard many objects to trigger GC
+                for (let round = 0; round < 10; round++) {
+                    const objects = [];
+                    
+                    // Create many objects
+                    for (let i = 0; i < 10000; i++) {
+                        objects.push({
+                            id: i,
+                            value: `test_${i}`,
+                            data: new Array(100).fill(i)
+                        });
+                    }
+                    
+                    // Add some circular references
+                    for (let i = 0; i < objects.length - 1; i++) {
+                        objects[i].next = objects[i + 1];
+                    }
+                    
+                    // Clear objects to allow GC
+                    objects.length = 0;
+                }
+                
+                // Try to force garbage collection (not guaranteed to work)
+                if (window.gc) {
+                    window.gc();
+                } else {
+                    // Try to force GC indirectly
+                    const memoryFiller = [];
+                    for (let i = 0; i < 20; i++) {
+                        memoryFiller.push(new Array(1000000).fill(0));
+                        memoryFiller.pop();
+                    }
+                }
+                
+                const elapsed = performance.now() - startTime;
+                log(`Garbage collection test completed in ${elapsed.toFixed(2)}ms`);
+                
+                // Calculate GC score
+                calculateGCScore(elapsed);
+                
+                // Check storage limits
+                updateProgress(63);
+                checkStorageLimits();
+                
+            } catch (e) {
+                log(`GC test error: ${e.message}`);
+                gcScore = 0;
+                updateProgress(63);
+                checkStorageLimits();
+            }
+        }
+        
+        // Calculate GC score
+        function calculateGCScore(elapsed) {
+            try {
+                const maxScore = 100;
+                const minTime = 50; // ms (fastest expected)
+                const maxTime = 500; // ms (slowest expected)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime)));
+                gcScore = Math.min(100, Math.max(0, score));
+                
+                log(`Garbage Collection score: ${gcScore}/100 (${elapsed.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating GC score: ${e.message}`);
+                gcScore = 50; // Default fallback
+            }
+        }
+        
+        // Check browser storage limits
+        function checkStorageLimits() {
+            try {
+                log("Checking browser storage limits...");
+                updateStatus("Checking storage capabilities...");
+                
+                // Test localStorage if available
+                if (typeof localStorage !== 'undefined') {
+                    if (navigator.storage && navigator.storage.estimate) {
+                        navigator.storage.estimate().then(estimate => {
+                            const quotaMB = estimate.quota / (1024 * 1024);
+                            storageLimit = `~${quotaMB.toFixed(0)}MB`;
+                            log(`Browser storage estimate: ${storageLimit}`);
+                            
+                            // Move to feature detection
+                            updateProgress(66);
+                            detectHardwareFeatures();
+                        }).catch(e => {
+                            log(`Storage estimation error: ${e.message}`);
+                            storageLimit = 'Unknown';
+                            updateProgress(66);
+                            detectHardwareFeatures();
+                        });
+                    } else {
+                        // Fallback estimate
+                        try {
+                            let testString = '';
+                            let testSize = 0;
+                            const key = '_test_storage_';
+                            const chunk = 'X'.repeat(1024 * 1024); // 1MB chunk
+                            
+                            // Try storing larger and larger chunks
+                            try {
+                                localStorage.removeItem(key);
+                                while (testSize < 10) { // Try up to 10MB
+                                    testString += chunk;
+                                    localStorage.setItem(key, testString);
+                                    testSize++;
+                                }
+                            } catch (e) {
+                                // Hit the limit
+                            } finally {
+                                localStorage.removeItem(key);
+                            }
+                            
+                            storageLimit = `~${testSize}MB`;
+                            log(`Estimated storage (fallback): ${storageLimit}`);
+                        } catch (e) {
+                            storageLimit = 'Limited';
+                            log(`Storage test error: ${e.message}`);
+                        }
+                        
+                        updateProgress(66);
+                        detectHardwareFeatures();
+                    }
+                } else {
+                    log("LocalStorage not available");
+                    storageLimit = 'Not available';
+                    updateProgress(66);
+                    detectHardwareFeatures();
+                }
+            } catch (e) {
+                log(`Storage test error: ${e.message}`);
+                storageLimit = 'Error detecting';
+                updateProgress(66);
+                detectHardwareFeatures();
+            }
+        }
+        
+        // Detect hardware features - improved detection methods
+        function detectHardwareFeatures() {
+            log("Detecting hardware features and capabilities...");
+            updateStatus("Detecting hardware features...");
+            
+            try {
+                // More comprehensive feature detection
+                hardwareFeatures = {
+                    webGL: webglSupport !== 'Unknown' && webglSupport !== 'Not supported',
+                    webGL2: webglSupport.includes('WebGL 2.0'),
+                    touchscreen: 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches,
+                    geolocation: 'geolocation' in navigator,
+                    // Better Bluetooth detection (assume YES on mobile devices)
+                    bluetooth: 'bluetooth' in navigator || isMobileDevice() || navigator.userAgent.includes('Android') || navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad'),
+                    usb: 'usb' in navigator || navigator.userAgent.includes('Android'),
+                    // Better NFC detection (assume YES on modern mobile devices)
+                    nfc: 'nfc' in navigator || navigator.userAgent.includes('Android') || (navigator.userAgent.includes('iPhone') && !navigator.userAgent.includes('iPhone 5') && !navigator.userAgent.includes('iPhone 6')),
+                    vibration: 'vibrate' in navigator || 'mozVibrate' in navigator || 'webkitVibrate' in navigator,
+                    deviceOrientation: 'DeviceOrientationEvent' in window || 'ondeviceorientation' in window,
+                    deviceMotion: 'DeviceMotionEvent' in window || 'ondevicemotion' in window,
+                    webRTC: 'RTCPeerConnection' in window || 'webkitRTCPeerConnection' in window || 'mozRTCPeerConnection' in window,
+                    webAudio: 'AudioContext' in window || 'webkitAudioContext' in window,
+                    webSpeech: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
+                    webAssembly: typeof WebAssembly !== 'undefined',
+                    serviceWorker: 'serviceWorker' in navigator
+                };
+                
+                // Function to detect if running on a mobile device
+                function isMobileDevice() {
+                    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                           (window.innerWidth <= 800 && window.innerHeight <= 900);
+                }
+                
+                // Check for WebAssembly
+                wasmSupport = hardwareFeatures.webAssembly;
+                
+                // Check for WebRTC
+                webrtcSupport = hardwareFeatures.webRTC;
+                
+                // Add sensors to sensor list - more comprehensive detection
+                if (hardwareFeatures.deviceOrientation) sensorList.push('Gyroscope');
+                if (hardwareFeatures.deviceMotion) sensorList.push('Accelerometer');
+                if (hardwareFeatures.geolocation) sensorList.push('GPS/Location');
+                if (isMobileDevice()) {
+                    // Most mobile devices have these sensors
+                    if (!sensorList.includes('Proximity')) sensorList.push('Proximity');
+                    if (!sensorList.includes('Ambient Light')) sensorList.push('Ambient Light');
+                    if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
+                        sensorList.push('Barometer');
+                    }
+                }
+                
+                // Log detected features
+                const availableFeatures = Object.entries(hardwareFeatures)
+                    .filter(([_, value]) => value)
+                    .map(([key]) => key);
+                
+                log(`Detected hardware features: ${availableFeatures.join(', ')}`);
+                
+                // Check battery status
+                updateProgress(69);
+                checkBatteryStatus();
+                
+            } catch (e) {
+                log(`Feature detection error: ${e.message}`);
+                updateProgress(69);
+                checkBatteryStatus();
+            }
+        }
+        
+        // Check battery status
+        function checkBatteryStatus() {
+            try {
+                if ('getBattery' in navigator) {
+                    navigator.getBattery().then(battery => {
+                        batteryStatus = {
+                            available: true,
+                            charging: battery.charging,
+                            level: battery.level * 100,
+                            chargingTime: battery.chargingTime,
+                            dischargingTime: battery.dischargingTime
+                        };
+                        
+                        log(`Battery status: ${batteryStatus.level.toFixed(0)}% ${batteryStatus.charging ? 'charging' : 'discharging'}`);
+                        
+                        // Continue to audio test
+                        updateProgress(72);
+                        runAudioTest();
+                    }).catch(e => {
+                        log(`Battery API error: ${e.message}`);
+                        batteryStatus = { available: false };
+                        updateProgress(72);
+                        runAudioTest();
+                    });
+                } else {
+                    log("Battery API not available");
+                    batteryStatus = { available: false };
+                    updateProgress(72);
+                    runAudioTest();
+                }
+            } catch (e) {
+                log(`Battery check error: ${e.message}`);
+                batteryStatus = { available: false };
+                updateProgress(72);
+                runAudioTest();
+            }
+        }
+        
+        // Run audio test
+        function runAudioTest() {
+            try {
+                log("Testing audio capabilities...");
+                updateStatus("Testing audio performance...");
+                
+                // Check for Web Audio API
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) {
+                    log("Web Audio API not supported");
+                    audioScore = 0;
+                    audioFormats = ['Basic audio support only'];
+                    audioLatency = 0;
+                    updateProgress(75);
+                    detectInputLag();
+                    return;
+                }
+                
+                // Create audio context
+                const audioContext = new AudioContext();
+                const startTime = performance.now();
+                
+                // Create complex audio graph
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+                const analyser = audioContext.createAnalyser();
+                
+                // Connect nodes
+                oscillator.connect(gainNode);
+                gainNode.connect(filter);
+                filter.connect(analyser);
+                filter.connect(audioContext.destination);
+                
+                // Configure nodes
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.01, audioContext.currentTime); // Very quiet
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1000, audioContext.currentTime);
+                analyser.fftSize = 2048;
+                
+                // Start oscillator
+                oscillator.start();
+                
+                // Process audio data
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                
+                // Measure processing
+                for (let i = 0; i < 100; i++) {
+                    analyser.getByteFrequencyData(dataArray);
+                    filter.frequency.setValueAtTime(500 + i * 10, audioContext.currentTime);
+                }
+                
+                // Calculate approximate audio latency
+                audioLatency = (audioContext.baseLatency || 0.005) * 1000;
+                
+                // Stop audio
+                oscillator.stop();
+                oscillator.disconnect();
+                gainNode.disconnect();
+                filter.disconnect();
+                analyser.disconnect();
+                
+                // Close context
+                if (audioContext.close) {
+                    audioContext.close();
+                }
+                
+                const elapsed = performance.now() - startTime;
+                log(`Audio processing test completed in ${elapsed.toFixed(2)}ms`);
+                log(`Estimated audio latency: ${audioLatency.toFixed(2)}ms`);
+                
+                // Test supported audio formats
+                audioFormats = ['MP3', 'WAV', 'OGG']; // Most browsers support these
+                
+                // Test AAC support
+                const aacTest = document.createElement('audio');
+                if (aacTest.canPlayType('audio/aac') !== '') {
+                    audioFormats.push('AAC');
+                }
+                
+                // Test FLAC support
+                const flacTest = document.createElement('audio');
+                if (flacTest.canPlayType('audio/flac') !== '') {
+                    audioFormats.push('FLAC');
+                }
+                
+                // Calculate audio score
+                calculateAudioScore(elapsed, audioLatency);
+                
+                // Continue to input lag test
+                updateProgress(75);
+                detectInputLag();
+                
+            } catch (e) {
+                log(`Audio test error: ${e.message}`);
+                audioScore = 0;
+                audioFormats = ['Unknown'];
+                audioLatency = 0;
+                updateProgress(75);
+                detectInputLag();
+            }
+        }
+        
+        // Calculate audio score
+        function calculateAudioScore(elapsed, latency) {
+            try {
+                // Weight: 50% processing time, 50% latency
+                
+                // Processing time score
+                const maxTime = 200; // ms (slowest expected)
+                const minTime = 20;  // ms (fastest expected)
+                const timeScore = 100 * (1 - (Math.min(Math.max(elapsed, minTime), maxTime) - minTime) / (maxTime - minTime));
+                
+                // Latency score
+                const maxLatency = 20; // ms (worst)
+                const minLatency = 1;  // ms (best)
+                const latencyScore = 100 * (1 - (Math.min(Math.max(latency, minLatency), maxLatency) - minLatency) / (maxLatency - minLatency));
+                
+                // Combined score
+                audioScore = Math.round(timeScore * 0.5 + latencyScore * 0.5);
+                audioScore = Math.min(100, Math.max(0, audioScore));
+                
+                log(`Audio Processing score: ${audioScore}/100 (Processing: ${timeScore.toFixed(0)}, Latency: ${latencyScore.toFixed(0)})`);
+            } catch (e) {
+                log(`Error calculating audio score: ${e.message}`);
+                audioScore = 50; // Default fallback
+            }
+        }
+        
+        // Detect input lag
+        function detectInputLag() {
+            try {
+                log("Testing input responsiveness...");
+                updateStatus("Testing input responsiveness...");
+                
+                // For input lag, we need to estimate based on:
+                // 1. Animation frame rate (already measured)
+                // 2. Event processing speed
+                
+                const startTime = performance.now();
+                let eventsProcessed = 0;
+                
+                function processEvent() {
+                    eventsProcessed++;
+                    if (eventsProcessed < 1000) {
+                        setTimeout(processEvent, 0);
+                    } else {
+                        const elapsed = performance.now() - startTime;
+                        const avgEventTime = elapsed / eventsProcessed;
+                        
+                        // Estimate input lag based on event processing time and frame rate
+                        const frameTime = 1000 / (refreshRate || 60);
+                        inputLag = avgEventTime + frameTime;
+                        
+                        log(`Input response test: avg event time ${avgEventTime.toFixed(2)}ms, estimated input lag: ${inputLag.toFixed(2)}ms`);
+                        
+                        // Calculate touch input score
+                        calculateTouchScore(inputLag);
+                        
+                        // Continue to network test
+                        updateProgress(78);
+                        checkConnectionType();
+                    }
+                }
+                
+                // Start processing
+                processEvent();
+                
+            } catch (e) {
+                log(`Input lag test error: ${e.message}`);
+                inputLag = 50; // Default value
+                touchScore = 50; // Default value
+                updateProgress(78);
+                checkConnectionType();
+            }
+        }
+        
+        // Calculate touch score
+        function calculateTouchScore(lag) {
+            try {
+                const maxScore = 100;
+                const minLag = 16; // ms (fastest expected - 60fps)
+                const maxLag = 100; // ms (slowest acceptable)
+                
+                const score = Math.round(maxScore * (1 - (Math.min(Math.max(lag, minLag), maxLag) - minLag) / (maxLag - minLag)));
+                touchScore = Math.min(100, Math.max(0, score));
+                
+                log(`Touch Response score: ${touchScore}/100 (estimated lag: ${lag.toFixed(2)}ms)`);
+            } catch (e) {
+                log(`Error calculating touch score: ${e.message}`);
+                touchScore = 50; // Default fallback
+            }
+        }
+        
+        // Check connection type with improved detection
+        function checkConnectionType() {
+            try {
+                log("Checking network connection...");
+                updateStatus("Checking network connection...");
+                
+                let connectionDetected = false;
+                
+                // Method 1: Use the Network Information API if available
+                if (navigator.connection) {
+                    const conn = navigator.connection;
+                    if (conn.effectiveType) {
+                        connectionType = conn.effectiveType;
+                        connectionDetected = true;
+                        log(`Network connection type (effectiveType): ${connectionType}`);
+                    } else if (conn.type) {
+                        connectionType = conn.type;
+                        connectionDetected = true;
+                        log(`Network connection type (type): ${connectionType}`);
+                    }
+                }
+                
+                // Method 2: Fallback - try to infer connection type
+                if (!connectionDetected) {
+                    // Use the user agent to make an educated guess
+                    const ua = navigator.userAgent.toLowerCase();
+                    
+                    if (ua.includes('android')) {
+                        // Android devices
+                        if (ua.includes('netfront') || ua.includes('silk')) {
+                            connectionType = 'cellular';
+                        } else {
+                            connectionType = 'wifi'; // Assume wifi for most Android browsers
+                        }
+                        connectionDetected = true;
+                    } else if (ua.includes('iphone') || ua.includes('ipad')) {
+                        // iOS devices - assume wifi for simplicity
+                        connectionType = 'wifi';
+                        connectionDetected = true;
+                    } else if (ua.includes('windows phone')) {
+                        connectionType = 'cellular';
+                        connectionDetected = true;
+                    } else {
+                        // Desktop - assume ethernet/wifi
+                        connectionType = 'wifi/ethernet';
+                        connectionDetected = true;
+                    }
+                    
+                    log(`Network connection type (inferred): ${connectionType}`);
+                }
+                
+                // If all detection methods failed
+                if (!connectionDetected) {
+                    connectionType = 'Unknown';
+                    log("Could not detect network connection type");
+                }
+                
+                // Run network latency test with improved reliability
+                measureNetworkLatency();
+                
+            } catch (e) {
+                log(`Connection check error: ${e.message}`);
+                connectionType = 'Unknown';
+                measureNetworkLatency();
+            }
+        }
+        
+        // Measure network latency with multiple endpoints for reliability
+        function measureNetworkLatency() {
+            try {
+                log("Measuring network latency...");
+                
+                // Use multiple endpoints to improve reliability
+                const endpoints = [
+                    'https://www.google.com/favicon.ico',
+                    'https://www.microsoft.com/favicon.ico',
+                    'https://www.amazon.com/favicon.ico'
+                ];
+                
+                let completedTests = 0;
+                let totalLatency = 0;
+                
+                // Test each endpoint
+                endpoints.forEach(endpoint => {
+                    const startTime = performance.now();
+                    
+                    fetch(endpoint, { 
+                        mode: 'no-cors',
+                        cache: 'no-store'
+                    })
+                    .then(() => {
+                        const latency = performance.now() - startTime;
+                        totalLatency += latency;
+                        completedTests++;
+                        
+                        log(`Latency to ${endpoint}: ${latency.toFixed(1)}ms`);
+                        
+                        // When all tests are complete, calculate average latency
+                        if (completedTests === endpoints.length) {
+                            networkLatency = totalLatency / completedTests;
+                            log(`Average network latency: ${networkLatency.toFixed(1)}ms`);
+                            
+                            // Measure download speed
+                            estimateDownloadSpeed();
+                        }
+                    })
+                    .catch(e => {
+                        log(`Network latency test error for ${endpoint}: ${e.message}`);
+                        completedTests++;
+                        
+                        // If all tests fail, move on
+                        if (completedTests === endpoints.length) {
+                            if (totalLatency === 0) {
+                                networkLatency = 0;
+                                log("Could not measure network latency");
+                            } else {
+                                networkLatency = totalLatency / (completedTests - 1);
+                                log(`Average network latency (from successful tests): ${networkLatency.toFixed(1)}ms`);
+                            }
+                            
+                            // Measure download speed
+                            estimateDownloadSpeed();
+                        }
+                    });
+                });
+                
+                // If all fetches fail to complete within 5 seconds, continue
+                setTimeout(() => {
+                    if (completedTests < endpoints.length) {
+                        log("Network latency test timeout - some tests did not complete");
+                        
+                        if (totalLatency === 0) {
+                            networkLatency = 0;
+                            log("Could not measure network latency");
+                        } else {
+                            networkLatency = totalLatency / completedTests;
+                            log(`Average network latency (from successful tests): ${networkLatency.toFixed(1)}ms`);
+                        }
+                        
+                        // Measure download speed
+                        estimateDownloadSpeed();
+                    }
+                }, 5000);
+                
+            } catch (e) {
+                log(`Network latency setup error: ${e.message}`);
+                networkLatency = 0;
+                estimateDownloadSpeed();
+            }
+        }
+        
+        // Estimate download speed with improved method
+        function estimateDownloadSpeed() {
+            try {
+                log("Estimating download speed...");
+                
+                // Use multiple files of different sizes for better estimation
+                const testFiles = [
+                    {
+                        url: 'https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js',
+                        expectedSize: 89476 // bytes
+                    },
+                    {
+                        url: 'https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js',
+                        expectedSize: 78468 // bytes
+                    }
+                ];
+                
+                let completedTests = 0;
+                let totalSpeedMbps = 0;
+                
+                // Test each file
+                testFiles.forEach(file => {
+                    const startTime = performance.now();
+                    const cacheBust = `?cachebust=${Date.now()}${Math.random()}`;
+                    
+                    fetch(`${file.url}${cacheBust}`, { cache: 'no-store' })
+                    .then(response => response.arrayBuffer())
+                    .then(data => {
+                        const elapsed = performance.now() - startTime;
+                        const actualSize = data.byteLength;
+                        
+                        // If we know the expected size, use it for verification
+                        // otherwise use the actual size
+                        const fileSize = file.expectedSize || actualSize;
+                        const speedMbps = (fileSize * 8 / 1000000) / (elapsed / 1000);
+                        
+                        log(`Download speed for ${file.url}: ${speedMbps.toFixed(2)} Mbps`);
+                        
+                        totalSpeedMbps += speedMbps;
+                        completedTests++;
+                        
+                        // When all tests complete, calculate average speed
+                        if (completedTests === testFiles.length) {
+                            downloadSpeed = totalSpeedMbps / completedTests;
+                            log(`Average download speed: ${downloadSpeed.toFixed(2)} Mbps`);
+                            
+                            // Calculate network score
+                            calculateNetworkScore(downloadSpeed, networkLatency);
+                            
+                            // Check for throttling
+                            updateProgress(82);
+                            checkForThrottling();
+                        }
+                    })
+                    .catch(e => {
+                        log(`Download speed test error for ${file.url}: ${e.message}`);
+                        completedTests++;
+                        
+                        // If all tests fail, move on
+                        if (completedTests === testFiles.length) {
+                            if (totalSpeedMbps === 0) {
+                                downloadSpeed = 0;
+                                networkScore = 50; // Default fallback
+                                log("Could not measure download speed");
+                            } else {
+                                downloadSpeed = totalSpeedMbps / completedTests;
+                                log(`Average download speed (from successful tests): ${downloadSpeed.toFixed(2)} Mbps`);
+                                calculateNetworkScore(downloadSpeed, networkLatency);
+                            }
+                            
+                            // Check for throttling
+                            updateProgress(82);
+                            checkForThrottling();
+                        }
+                    });
+                });
+                
+                // If all fetches fail to complete within 10 seconds, continue
+                setTimeout(() => {
+                    if (completedTests < testFiles.length) {
+                        log("Download speed test timeout - some tests did not complete");
+                        
+                        if (totalSpeedMbps === 0) {
+                            downloadSpeed = 0;
+                            networkScore = 50; // Default fallback
+                            log("Could not measure download speed");
+                        } else {
+                            downloadSpeed = totalSpeedMbps / completedTests;
+                            log(`Average download speed (from successful tests): ${downloadSpeed.toFixed(2)} Mbps`);
+                            calculateNetworkScore(downloadSpeed, networkLatency);
+                        }
+                        
+                        // Check for throttling
+                        updateProgress(82);
+                        checkForThrottling();
+                    }
+                }, 10000);
+                
+            } catch (e) {
+                log(`Download speed setup error: ${e.message}`);
+                downloadSpeed = 0;
+                networkScore = 50; // Default
+                updateProgress(82);
+                checkForThrottling();
+            }
+        }
+        
+        // Calculate network score
+        function calculateNetworkScore(speed, latency) {
+            try {
+                // Weight: 70% speed, 30% latency
+                
+                // Speed score
+                const maxSpeed = 30; // Mbps (more than enough for most tasks)
+                const minSpeed = 1;  // Mbps (very slow)
+                const speedScore = speed === 0 ? 50 : // If speed test failed, assume medium speed
+                    Math.min(100, Math.max(0, 100 * (Math.min(Math.max(speed, minSpeed), maxSpeed) - minSpeed) / (maxSpeed - minSpeed)));
+                
+                // Latency score
+                const maxLatency = 200; // ms (slow)
+                const minLatency = 10;  // ms (very fast)
+                const latencyScore = latency === 0 ? 50 : // If latency test failed, assume medium latency
+                    Math.min(100, Math.max(0, 100 * (1 - (Math.min(Math.max(latency, minLatency), maxLatency) - minLatency) / (maxLatency - minLatency))));
+                
+                // Combined score
+                networkScore = Math.round(speedScore * 0.7 + latencyScore * 0.3);
+                
+                log(`Network score: ${networkScore}/100 (Speed: ${speedScore.toFixed(0)}, Latency: ${latencyScore.toFixed(0)})`);
+            } catch (e) {
+                log(`Error calculating network score: ${e.message}`);
+                networkScore = 50; // Default fallback
+            }
+        }
+        
+        // Check for performance throttling
+        function checkForThrottling() {
+            try {
+                log("Checking for performance throttling...");
+                updateStatus("Analyzing throttling...");
+                
+                // Compare initial performance to current performance
+                const startTime = performance.now();
+                
+                // Run a quick CPU-intensive task
+                let result = 0;
+                for (let i = 0; i < 1000000; i++) {
+                    result += Math.sqrt(i);
+                }
+                
+                const elapsed = performance.now() - startTime;
+                
+                // Compare with earlier CPU test
+                if (cpuComputeTime > 0) {
+                    const ratio = elapsed / (cpuComputeTime / 100); // Adjust for test size difference
+                    
+                    if (ratio > 2.0) {
+                        // Performance has degraded significantly
+                        throttlingDetected = true;
+                        log(`Performance throttling detected (${ratio.toFixed(2)}x slower than initial test)`);
+                    } else {
+                        throttlingDetected = false;
+                        log(`No significant performance throttling detected (ratio: ${ratio.toFixed(2)})`);
+                    }
+                } else {
+                    throttlingDetected = false;
+                    log("Couldn't compare performance (no initial CPU data)");
+                }
+                
+                // Complete all tests
+                updateProgress(100);
+                processResults();
+                
+            } catch (e) {
+                log(`Throttling detection error: ${e.message}`);
+                throttlingDetected = false;
+                updateProgress(100);
+                processResults();
+            }
+        }
+        
+        // Process results and display
+        function processResults() {
+            log("Processing all test results...");
+            updateStatus("Analyzing device performance...");
+            
+            try {
+                // Calculate overall graphics score
+                const graphicsScore = Math.round((renderingScore * 0.4) + (geometryScore * 0.2) + (shaderScore * 0.2) + (particleScore * 0.2));
+                
+                // Calculate overall processor score
+                const processorScore = Math.round((cpuScore * 0.25) + (stringScore * 0.15) + (jsonScore * 0.15) + 
+                                               (mathScore * 0.15) + (cryptoScore * 0.15) + (memoryScore * 0.15));
+                
+                // Calculate overall score (weighted average)
+                const overallScore = Math.round(
+                    graphicsScore * 0.30 +    // 30% 3D graphics
+                    processorScore * 0.30 +   // 30% CPU/processing
+                    memoryScore * 0.10 +      // 10% memory
+                    displayScore * 0.10 +     // 10% display
+                    audioScore * 0.05 +       // 5% audio
+                    touchScore * 0.05 +       // 5% input
+                    networkScore * 0.10       // 10% network
+                );
+                
+                // Match to device profile
+                const deviceProfile = identifyDeviceProfile(renderingScore, cpuScore);
+                
+                // Display results
+                populateResults(overallScore, deviceProfile, graphicsScore, processorScore);
+                
+                // Create GPU chart
+                createGpuChart();
+                
+                // Create hardware feature badges
+                createHardwareFeatureBadges();
+                
+                // Set up tab navigation
+                setupTabs();
+                
+                // Update throttling warning if needed
+                if (throttlingDetected) {
+                    document.getElementById('throttling-warning').classList.remove('hidden');
+                }
+                
+                // Show results
+                resultsPanel.classList.remove('hidden');
+                updateStatus("Test completed!");
+                
+                // Re-enable start button
+                startButton.disabled = false;
+                startButton.textContent = "Run Test Again";
+                
+                isTestRunning = false;
+                currentStage = 'complete';
+                log("All tests completed successfully!");
+            } catch (e) {
+                log(`Error processing results: ${e.message}`);
+                // Show some basic results anyway
+                resultsPanel.classList.remove('hidden');
+                document.getElementById('overall-score').textContent = "Error";
+                updateStatus("Test completed with errors");
+                startButton.disabled = false;
+                startButton.textContent = "Run Test Again";
+                isTestRunning = false;
+            }
+        }
+        
+        // Create hardware feature badges
+        function createHardwareFeatureBadges() {
+            try {
+                const container = document.getElementById('hardware-features');
+                container.innerHTML = '';
+                
+                // Add badges for all features
+                Object.entries(hardwareFeatures).forEach(([feature, available]) => {
+                    const badge = document.createElement('div');
+                    badge.className = `px-1 py-1 rounded text-xs font-medium ${
+                        available 
+                            ? 'bg-green-50 text-green-700 border border-green-200' 
+                            : 'bg-red-50 text-red-700 border border-red-200 line-through'
+                    }`;
+                    
+                    // Make feature names more readable
+                    const readableFeatures = {
+                        'webGL': 'WebGL',
+                        'webGL2': 'WebGL 2.0',
+                        'touchscreen': 'Touchscreen',
+                        'geolocation': 'GPS',
+                        'bluetooth': 'Bluetooth',
+                        'usb': 'USB',
+                        'nfc': 'NFC',
+                        'vibration': 'Vibration',
+                        'deviceOrientation': 'Gyroscope',
+                        'deviceMotion': 'Accelerometer',
+                        'webRTC': 'WebRTC',
+                        'webAudio': 'Web Audio',
+                        'webSpeech': 'Speech Recognition',
+                        'webAssembly': 'WebAssembly',
+                        'serviceWorker': 'Service Worker'
+                    };
+                    
+                    badge.textContent = readableFeatures[feature] || feature;
+                    container.appendChild(badge);
+                });
+            } catch (e) {
+                log(`Error creating feature badges: ${e.message}`);
+            }
+        }
+        
+        // Set up tabs for results
+        function setupTabs() {
+            try {
+                document.querySelectorAll('.tab-btn').forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        // Remove active class from all tabs and contents
+                        document.querySelectorAll('.tab-btn').forEach(t => {
+                            t.classList.remove('active');
+                            t.classList.add('border-transparent');
+                            t.classList.remove('border-primary');
+                        });
+                        
+                        document.querySelectorAll('.tab-content').forEach(c => {
+                            c.classList.add('hidden');
+                            c.classList.remove('block');
+                        });
+                        
+                        // Add active class to clicked tab
+                        tab.classList.add('active');
+                        tab.classList.remove('border-transparent');
+                        tab.classList.add('border-primary');
+                        
+                        // Show corresponding content
+                        const tabId = tab.getAttribute('data-tab');
+                        const content = document.getElementById(`${tabId}-tab`);
+                        content.classList.remove('hidden');
+                        content.classList.add('block');
+                    });
+                });
+            } catch (e) {
+                log(`Error setting up tabs: ${e.message}`);
+            }
+        }
+        
+        // Create GPU chart
+        function createGpuChart() {
+            try {
+                const chartContainer = document.getElementById('gpu-chart');
+                chartContainer.innerHTML = ''; // Clear previous chart
+                
+                const metrics = [
+                    { label: 'Render', value: renderingScore },
+                    { label: 'Geometry', value: geometryScore },
+                    { label: 'Shader', value: shaderScore },
+                    { label: 'Particles', value: particleScore }
+                ];
+                
+                // Calculate the width of each bar based on container width
+                const containerWidth = chartContainer.clientWidth;
+                const barWidth = (containerWidth / metrics.length) * 0.6; // 60% of available space
+                const spacing = (containerWidth - barWidth * metrics.length) / (metrics.length + 1);
+                
+                // Create bars
+                metrics.forEach((metric, index) => {
+                    // Create bar
+                    const bar = document.createElement('div');
+                    bar.className = 'chart-bar absolute bottom-0 bg-primary rounded-t';
+                    bar.style.height = '0px'; // Start at 0 for animation
+                    bar.style.left = `${spacing + (barWidth + spacing) * index}px`;
+                    bar.style.width = `${barWidth}px`;
+                    
+                    // Create label
+                    const label = document.createElement('div');
+                    label.className = 'absolute bottom-[-20px] text-center text-xs';
+                    label.textContent = metric.label;
+                    label.style.left = `${spacing + (barWidth + spacing) * index}px`;
+                    label.style.width = `${barWidth}px`;
+                    
+                    // Create value label
+                    const valueLabel = document.createElement('div');
+                    valueLabel.className = 'absolute text-center text-xs text-white';
+                    valueLabel.textContent = metric.value;
+                    valueLabel.style.left = `${spacing + (barWidth + spacing) * index}px`;
+                    valueLabel.style.width = `${barWidth}px`;
+                    valueLabel.style.bottom = `${metric.value * 0.7 + 5}px`; // Position label above bar
+                    
+                    chartContainer.appendChild(bar);
+                    chartContainer.appendChild(label);
+                    chartContainer.appendChild(valueLabel);
+                    
+                    // Animate bar after a small delay
+                    setTimeout(() => {
+                        bar.style.height = `${metric.value * 0.7}px`; // 0.7px per score point
+                    }, 100 + index * 100);
+                });
+                
+                // Add baseline
+                const baseline = document.createElement('div');
+                baseline.className = 'absolute left-0 right-0 bottom-0 h-[1px] bg-gray-300';
+                chartContainer.appendChild(baseline);
+            } catch (e) {
+                log(`Error creating chart: ${e.message}`);
+            }
+        }
+        
+        // Identify device profile based on scores
+        function identifyDeviceProfile(renderingScore, cpuScore) {
+            try {
+                // Find the closest matching device profile
+                let bestMatch = null;
+                let bestScore = Infinity;
+                
+                deviceProfiles.forEach(profile => {
+                    // Calculate distance to this profile's ranges
+                    const renderDist = distanceToRange(renderingScore, profile.renderingRange[0], profile.renderingRange[1]);
+                    const cpuDist = distanceToRange(cpuScore, profile.cpuRange[0], profile.cpuRange[1]);
+                    
+                    // Combined distance (with weights)
+                    const totalDist = renderDist * 0.6 + cpuDist * 0.4;
+                    
+                    if (totalDist < bestScore) {
+                        bestScore = totalDist;
+                        bestMatch = profile;
+                    }
+                });
+                
+                return bestMatch;
+            } catch (e) {
+                log(`Error identifying device profile: ${e.message}`);
+                return deviceProfiles[4]; // Default to mid-range
+            }
+        }
+        
+        // Helper function to calculate distance to a range
+        function distanceToRange(value, min, max) {
+            if (value < min) return min - value;
+            if (value > max) return value - max;
+            return 0; // Within range
+        }
+        
+        // Populate results in the UI
+        function populateResults(overallScore, deviceProfile, graphicsScore, processorScore) {
+            try {
+                // Overall score
+                document.getElementById('overall-score').textContent = overallScore;
+                
+                // Card scores
+                document.getElementById('graphics-score').textContent = graphicsScore;
+                document.getElementById('processor-score').textContent = processorScore;
+                document.getElementById('memory-display').textContent = memoryScore;
+                document.getElementById('display-score').textContent = displayScore;
+                document.getElementById('network-score').textContent = networkScore;
+                
+                // Graphics details
+                document.getElementById('max-objects').textContent = maxTestedObjects.toLocaleString();
+                document.getElementById('rendering-score').textContent = `${renderingScore}/100`;
+                document.getElementById('geometry-score').textContent = `${geometryScore}/100`;
+                document.getElementById('shader-score').textContent = `${shaderScore}/100`;
+                
+                // Display details
+                document.getElementById('refresh-rate').textContent = `~${refreshRate}Hz`;
+                document.getElementById('animation-score').textContent = `${animationScore}/100`;
+                document.getElementById('color-depth').textContent = colorDepth;
+                document.getElementById('pixel-density').textContent = pixelDensity;
+                
+                // CPU details
+                document.getElementById('cpu-score').textContent = `${cpuScore}/100`;
+                document.getElementById('string-score').textContent = `${stringScore}/100`;
+                document.getElementById('json-score').textContent = `${jsonScore}/100`;
+                document.getElementById('math-score').textContent = `${mathScore}/100`;
+                document.getElementById('crypto-score').textContent = `${cryptoScore}/100`;
+                
+                // Memory details
+                document.getElementById('memory-score').textContent = `${memoryScore}/100`;
+                document.getElementById('memory-bandwidth').textContent = `${memoryBandwidth} MB/s`;
+                document.getElementById('gc-score').textContent = `${gcScore}/100`;
+                document.getElementById('storage-limit').textContent = storageLimit;
+                
+                // Audio details
+                document.getElementById('audio-score').textContent = `${audioScore}/100`;
+                document.getElementById('audio-formats').textContent = audioFormats.join(', ');
+                document.getElementById('audio-latency').textContent = audioLatency === 0 ? 'Unknown' : `${audioLatency.toFixed(1)} ms`;
+                
+                // Input details
+                document.getElementById('touch-score').textContent = `${touchScore}/100`;
+                document.getElementById('input-lag').textContent = `${inputLag.toFixed(1)} ms`;
+                document.getElementById('sensor-list').textContent = sensorList.length > 0 ? sensorList.join(', ') : 'None detected';
+                
+                // Battery details
+                document.getElementById('battery-status').textContent = batteryStatus.available === false ? 'Not available' : 
+                    `${batteryStatus.level.toFixed(0)}% ${batteryStatus.charging ? 'Charging' : 'Discharging'}`;
+                
+                // Network details
+                document.getElementById('download-speed').textContent = downloadSpeed === 0 ? 'Unknown' : `${downloadSpeed.toFixed(1)} Mbps`;
+                document.getElementById('network-latency').textContent = networkLatency === 0 ? 'Unknown' : `${networkLatency.toFixed(0)} ms`;
+                document.getElementById('connection-type').textContent = connectionType;
+                
+                // Browser capabilities
+                document.getElementById('webgl-support').textContent = webglSupport;
+                document.getElementById('wasm-support').textContent = wasmSupport ? 'Supported' : 'Not supported';
+                document.getElementById('webrtc-support').textContent = webrtcSupport ? 'Supported' : 'Not supported';
+                
+                // Device profile information
+                if (deviceProfile) {
+                    document.getElementById('device-type').textContent = deviceProfile.type;
+                    document.getElementById('performance-tier').textContent = deviceProfile.tier;
+                    document.getElementById('comparable-devices').textContent = deviceProfile.examples;
+                }
+                
+                // Set recommendation
+                let recommendation = "";
+                if (overallScore >= 85) {
+                    recommendation = "Your device has excellent performance capabilities. It can handle demanding 3D applications, games with high-quality graphics, and complex computational tasks with ease.";
+                } else if (overallScore >= 70) {
+                    recommendation = "Your device has very good performance. It's suitable for most modern applications and games, though you may want to reduce quality settings for the most demanding titles.";
+                } else if (overallScore >= 55) {
+                    recommendation = "Your device has good performance for everyday tasks and can handle moderate 3D applications and games with medium quality settings.";
+                } else if (overallScore >= 40) {
+                    recommendation = "Your device has average performance. It should be fine for regular use and can run simple 3D applications, but may struggle with more demanding software.";
+                } else if (overallScore >= 25) {
+                    recommendation = "Your device has below-average performance. Consider using lighter applications and games with minimal graphics requirements.";
+                } else {
+                    recommendation = "Your device has limited performance capabilities. It's best suited for basic tasks and very simple applications.";
+                }
+                
+                document.getElementById('performance-recommendation').textContent = recommendation;
+            } catch (e) {
+                log(`Error populating results: ${e.message}`);
+            }
+        }
+        
+        // Format results for export as PDF
+        function formatResultsForPDF() {
+            try {
+                // Create a div to hold the formatted content
+                const pdfContainer = document.createElement('div');
+                pdfContainer.className = 'pdf-content';
+                
+                // Add title
+                const title = document.createElement('h1');
+                title.textContent = 'Device Performance Analysis Report';
+                title.style.fontSize = '24px';
+                title.style.marginBottom = '20px';
+                title.style.textAlign = 'center';
+                pdfContainer.appendChild(title);
+                
+                // Add date
+                const date = document.createElement('p');
+                date.textContent = `Report generated: ${new Date().toLocaleString()}`;
+                date.style.textAlign = 'center';
+                date.style.marginBottom = '30px';
+                pdfContainer.appendChild(date);
+                
+                // Add overall score
+                const scoreSection = document.createElement('div');
+                scoreSection.style.textAlign = 'center';
+                scoreSection.style.marginBottom = '30px';
+                
+                const scoreTitle = document.createElement('h2');
+                scoreTitle.textContent = 'Performance Index';
+                scoreTitle.style.fontSize = '20px';
+                scoreTitle.style.marginBottom = '10px';
+                scoreSection.appendChild(scoreTitle);
+                
+                const score = document.createElement('div');
+                score.textContent = `${document.getElementById('overall-score').textContent}/100`;
+                score.style.fontSize = '36px';
+                score.style.fontWeight = 'bold';
+                score.style.color = '#5D5CDE';
+                scoreSection.appendChild(score);
+                
+                pdfContainer.appendChild(scoreSection);
+                
+                // Device profile
+                const profileSection = document.createElement('div');
+                profileSection.style.marginBottom = '30px';
+                
+                const profileTitle = document.createElement('h2');
+                profileTitle.textContent = 'Device Profile';
+                profileTitle.style.fontSize = '18px';
+                profileTitle.style.marginBottom = '10px';
+                profileSection.appendChild(profileTitle);
+                
+                const profileTable = document.createElement('table');
+                profileTable.style.width = '100%';
+                profileTable.style.borderCollapse = 'collapse';
+                
+                // Add rows to profile table
+                const profileData = [
+                    { label: 'Device Type', value: document.getElementById('device-type').textContent },
+                    { label: 'Performance Tier', value: document.getElementById('performance-tier').textContent },
+                    { label: 'Comparable Devices', value: document.getElementById('comparable-devices').textContent }
+                ];
+                
+                profileData.forEach(item => {
+                    const row = profileTable.insertRow();
+                    
+                    const labelCell = row.insertCell();
+                    labelCell.textContent = item.label;
+                    labelCell.style.padding = '8px';
+                    labelCell.style.border = '1px solid #ddd';
+                    labelCell.style.fontWeight = 'bold';
+                    labelCell.style.width = '40%';
+                    
+                    const valueCell = row.insertCell();
+                    valueCell.textContent = item.value;
+                    valueCell.style.padding = '8px';
+                    valueCell.style.border = '1px solid #ddd';
+                });
+                
+                profileSection.appendChild(profileTable);
+                pdfContainer.appendChild(profileSection);
+                
+                // Performance Scores
+                const scoresSection = document.createElement('div');
+                scoresSection.style.marginBottom = '30px';
+                
+                const scoresTitle = document.createElement('h2');
+                scoresTitle.textContent = 'Performance Scores';
+                scoresTitle.style.fontSize = '18px';
+                scoresTitle.style.marginBottom = '10px';
+                scoresSection.appendChild(scoresTitle);
+                
+                // Create table for scores
+                const scoresTable = document.createElement('table');
+                scoresTable.style.width = '100%';
+                scoresTable.style.borderCollapse = 'collapse';
+                
+                // Add header
+                const scoresHeader = scoresTable.createTHead();
+                const headerRow = scoresHeader.insertRow();
+                ['Category', 'Score'].forEach(text => {
+                    const cell = document.createElement('th');
+                    cell.textContent = text;
+                    cell.style.padding = '8px';
+                    cell.style.border = '1px solid #ddd';
+                    cell.style.backgroundColor = '#f2f2f2';
+                    cell.style.textAlign = 'left';
+                    headerRow.appendChild(cell);
+                });
+                
+                // Add score rows
+                const scoreData = [
+                    { label: 'Graphics', value: document.getElementById('graphics-score').textContent },
+                    { label: 'Processor', value: document.getElementById('processor-score').textContent },
+                    { label: 'Memory', value: document.getElementById('memory-display').textContent },
+                    { label: 'Display', value: document.getElementById('display-score').textContent },
+                    { label: 'Audio', value: document.getElementById('audio-score').textContent },
+                    { label: 'Touch Response', value: document.getElementById('touch-score').textContent + '/100' },
+                    { label: 'Network', value: document.getElementById('network-score').textContent + '/100' }
+                ];
+                
+                const tbody = scoresTable.createTBody();
+                scoreData.forEach(item => {
+                    const row = tbody.insertRow();
+                    
+                    const labelCell = row.insertCell();
+                    labelCell.textContent = item.label;
+                    labelCell.style.padding = '8px';
+                    labelCell.style.border = '1px solid #ddd';
+                    
+                    const valueCell = row.insertCell();
+                    valueCell.textContent = item.value;
+                    valueCell.style.padding = '8px';
+                    valueCell.style.border = '1px solid #ddd';
+                });
+                
+                scoresSection.appendChild(scoresTable);
+                pdfContainer.appendChild(scoresSection);
+                
+                // Graphics Details
+                const graphicsSection = document.createElement('div');
+                graphicsSection.style.marginBottom = '30px';
+                
+                const graphicsTitle = document.createElement('h2');
+                graphicsTitle.textContent = '3D Graphics Details';
+                graphicsTitle.style.fontSize = '18px';
+                graphicsTitle.style.marginBottom = '10px';
+                graphicsSection.appendChild(graphicsTitle);
+                
+                const graphicsTable = document.createElement('table');
+                graphicsTable.style.width = '100%';
+                graphicsTable.style.borderCollapse = 'collapse';
+                
+                const graphicsData = [
+                    { label: 'Max Objects Rendered', value: document.getElementById('max-objects').textContent },
+                    { label: 'Rendering Score', value: document.getElementById('rendering-score').textContent },
+                    { label: 'Geometry Processing', value: document.getElementById('geometry-score').textContent },
+                    { label: 'Shader Performance', value: document.getElementById('shader-score').textContent },
+                    { label: 'WebGL Support', value: document.getElementById('webgl-support').textContent }
+                ];
+                
+                graphicsData.forEach(item => {
+                    const row = graphicsTable.insertRow();
+                    
+                    const labelCell = row.insertCell();
+                    labelCell.textContent = item.label;
+                    labelCell.style.padding = '8px';
+                    labelCell.style.border = '1px solid #ddd';
+                    labelCell.style.fontWeight = 'bold';
+                    labelCell.style.width = '40%';
+                    
+                    const valueCell = row.insertCell();
+                    valueCell.textContent = item.value;
+                    valueCell.style.padding = '8px';
+                    valueCell.style.border = '1px solid #ddd';
+                });
+                
+                graphicsSection.appendChild(graphicsTable);
+                pdfContainer.appendChild(graphicsSection);
+                
+                // CPU Details
+                const cpuSection = document.createElement('div');
+                cpuSection.style.marginBottom = '30px';
+                
+                const cpuTitle = document.createElement('h2');
+                cpuTitle.textContent = 'CPU Performance Details';
+                cpuTitle.style.fontSize = '18px';
+                cpuTitle.style.marginBottom = '10px';
+                cpuSection.appendChild(cpuTitle);
+                
+                const cpuTable = document.createElement('table');
+                cpuTable.style.width = '100%';
+                cpuTable.style.borderCollapse = 'collapse';
+                
+                const cpuData = [
+                    { label: 'CPU Performance', value: document.getElementById('cpu-score').textContent },
+                    { label: 'String Processing', value: document.getElementById('string-score').textContent },
+                    { label: 'JSON Processing', value: document.getElementById('json-score').textContent },
+                    { label: 'Math Operations', value: document.getElementById('math-score').textContent },
+                    { label: 'Crypto Operations', value: document.getElementById('crypto-score').textContent },
+                    { label: 'Memory Operations', value: document.getElementById('memory-score').textContent },
+                    { label: 'Memory Bandwidth', value: document.getElementById('memory-bandwidth').textContent },
+                    { label: 'Garbage Collection', value: document.getElementById('gc-score').textContent }
+                ];
+                
+                cpuData.forEach(item => {
+                    const row = cpuTable.insertRow();
+                    
+                    const labelCell = row.insertCell();
+                    labelCell.textContent = item.label;
+                    labelCell.style.padding = '8px';
+                    labelCell.style.border = '1px solid #ddd';
+                    labelCell.style.fontWeight = 'bold';
+                    labelCell.style.width = '40%';
+                    
+                    const valueCell = row.insertCell();
+                    valueCell.textContent = item.value;
+                    valueCell.style.padding = '8px';
+                    valueCell.style.border = '1px solid #ddd';
+                });
+                
+                cpuSection.appendChild(cpuTable);
+                pdfContainer.appendChild(cpuSection);
+                
+                // Display and Input
+                const displaySection = document.createElement('div');
+                displaySection.style.marginBottom = '30px';
+                
+                const displayTitle = document.createElement('h2');
+                displayTitle.textContent = 'Display and Input';
+                displayTitle.style.fontSize = '18px';
+                displayTitle.style.marginBottom = '10px';
+                displaySection.appendChild(displayTitle);
+                
+                const displayTable = document.createElement('table');
+                displayTable.style.width = '100%';
+                displayTable.style.borderCollapse = 'collapse';
+                
+                const displayData = [
+                    { label: 'Refresh Rate', value: document.getElementById('refresh-rate').textContent },
+                    { label: 'Animation Smoothness', value: document.getElementById('animation-score').textContent },
+                    { label: 'Color Depth', value: document.getElementById('color-depth').textContent },
+                    { label: 'Pixel Density', value: document.getElementById('pixel-density').textContent },
+                    { label: 'Touch Response', value: document.getElementById('touch-score').textContent },
+                    { label: 'Input Lag', value: document.getElementById('input-lag').textContent }
+                ];
+                
+                displayData.forEach(item => {
+                    const row = displayTable.insertRow();
+                    
+                    const labelCell = row.insertCell();
+                    labelCell.textContent = item.label;
+                    labelCell.style.padding = '8px';
+                    labelCell.style.border = '1px solid #ddd';
+                    labelCell.style.fontWeight = 'bold';
+                    labelCell.style.width = '40%';
+                    
+                    const valueCell = row.insertCell();
+                    valueCell.textContent = item.value;
+                    valueCell.style.padding = '8px';
+                    valueCell.style.border = '1px solid #ddd';
+                });
+                
+                displaySection.appendChild(displayTable);
+                pdfContainer.appendChild(displaySection);
+                
+                // Network and Connectivity
+                const networkSection = document.createElement('div');
+                networkSection.style.marginBottom = '30px';
+                
+                const networkTitle = document.createElement('h2');
+                networkTitle.textContent = 'Network and Connectivity';
+                networkTitle.style.fontSize = '18px';
+                networkTitle.style.marginBottom = '10px';
+                networkSection.appendChild(networkTitle);
+                
+                const networkTable = document.createElement('table');
+                networkTable.style.width = '100%';
+                networkTable.style.borderCollapse = 'collapse';
+                
+                const networkData = [
+                    { label: 'Network Score', value: document.getElementById('network-score').textContent },
+                    { label: 'Download Speed', value: document.getElementById('download-speed').textContent },
+                    { label: 'Network Latency', value: document.getElementById('network-latency').textContent },
+                    { label: 'Connection Type', value: document.getElementById('connection-type').textContent }
+                ];
+                
+                networkData.forEach(item => {
+                    const row = networkTable.insertRow();
+                    
+                    const labelCell = row.insertCell();
+                    labelCell.textContent = item.label;
+                    labelCell.style.padding = '8px';
+                    labelCell.style.border = '1px solid #ddd';
+                    labelCell.style.fontWeight = 'bold';
+                    labelCell.style.width = '40%';
+                    
+                    const valueCell = row.insertCell();
+                    valueCell.textContent = item.value;
+                    valueCell.style.padding = '8px';
+                    valueCell.style.border = '1px solid #ddd';
+                });
+                
+                networkSection.appendChild(networkTable);
+                pdfContainer.appendChild(networkSection);
+                
+                // Recommendation
+                const recSection = document.createElement('div');
+                recSection.style.marginBottom = '30px';
+                
+                const recTitle = document.createElement('h2');
+                recTitle.textContent = 'Performance Recommendation';
+                recTitle.style.fontSize = '18px';
+                recTitle.style.marginBottom = '10px';
+                recSection.appendChild(recTitle);
+                
+                const recText = document.createElement('p');
+                recText.textContent = document.getElementById('performance-recommendation').textContent;
+                recText.style.lineHeight = '1.5';
+                recSection.appendChild(recText);
+                
+                // Add warning about throttling if detected
+                if (throttlingDetected) {
+                    const warning = document.createElement('p');
+                    warning.textContent = 'Performance throttling detected! Your device may be thermal throttling or running in power-saving mode.';
+                    warning.style.color = '#e65100';
+                    warning.style.fontWeight = 'bold';
+                    warning.style.marginTop = '10px';
+                    recSection.appendChild(warning);
+                }
+                
+                pdfContainer.appendChild(recSection);
+                
+                // Footer
+                const footer = document.createElement('div');
+                footer.style.marginTop = '50px';
+                footer.style.textAlign = 'center';
+                footer.style.color = '#666';
+                footer.style.fontSize = '12px';
+                
+                const footerText = document.createElement('p');
+                footerText.textContent = 'Report generated by BenchMaster';
+                footer.appendChild(footerText);
+                
+                const footerLink = document.createElement('a');
+                footerLink.href = 'https://benchmaster.vercel.app';
+                footerLink.textContent = 'benchmaster.vercel.app';
+                footerLink.style.color = '#5D5CDE';
+                footerLink.style.textDecoration = 'none';
+                footerLink.style.display = 'block';
+                footerLink.style.marginTop = '5px';
+                footer.appendChild(footerLink);
+                
+                pdfContainer.appendChild(footer);
+                
+                return pdfContainer;
+            } catch (e) {
+                log(`Error formatting PDF: ${e.message}`);
+                return document.createElement('div');
+            }
+        }
+        
+        // Format results as Markdown
+        function formatResultsAsMarkdown() {
+            try {
+                let markdown = '';
+                
+                // Title and date
+                markdown += '# Device Performance Analysis Report\n\n';
+                markdown += `Report generated: ${new Date().toLocaleString()}\n\n`;
+                
+                // Overall score
+                markdown += `## Performance Index: ${document.getElementById('overall-score').textContent}/100\n\n`;
+                
+                // Device profile
+                markdown += '## Device Profile\n\n';
+                markdown += `- **Device Type:** ${document.getElementById('device-type').textContent}\n`;
+                markdown += `- **Performance Tier:** ${document.getElementById('performance-tier').textContent}\n`;
+                markdown += `- **Comparable Devices:** ${document.getElementById('comparable-devices').textContent}\n\n`;
+                
+                // Performance scores
+                markdown += '## Performance Scores\n\n';
+                markdown += `- **Graphics:** ${document.getElementById('graphics-score').textContent}\n`;
+                markdown += `- **Processor:** ${document.getElementById('processor-score').textContent}\n`;
+                markdown += `- **Memory:** ${document.getElementById('memory-display').textContent}\n`;
+                markdown += `- **Display:** ${document.getElementById('display-score').textContent}\n`;
+                markdown += `- **Network:** ${document.getElementById('network-score').textContent}/100\n`;
+                markdown += `- **Audio:** ${document.getElementById('audio-score').textContent}/100\n`;
+                markdown += `- **Touch Response:** ${document.getElementById('touch-score').textContent}/100\n\n`;
+                
+                // Graphics details
+                markdown += '## 3D Graphics Details\n\n';
+                markdown += `- **Max Objects Rendered:** ${document.getElementById('max-objects').textContent}\n`;
+                markdown += `- **Rendering Score:** ${document.getElementById('rendering-score').textContent}\n`;
+                markdown += `- **Geometry Processing:** ${document.getElementById('geometry-score').textContent}\n`;
+                markdown += `- **Shader Performance:** ${document.getElementById('shader-score').textContent}\n`;
+                markdown += `- **WebGL Support:** ${document.getElementById('webgl-support').textContent}\n\n`;
+                
+                // CPU details
+                markdown += '## CPU Performance Details\n\n';
+                markdown += `- **CPU Performance:** ${document.getElementById('cpu-score').textContent}\n`;
+                markdown += `- **String Processing:** ${document.getElementById('string-score').textContent}\n`;
+                markdown += `- **JSON Processing:** ${document.getElementById('json-score').textContent}\n`;
+                markdown += `- **Math Operations:** ${document.getElementById('math-score').textContent}\n`;
+                markdown += `- **Crypto Operations:** ${document.getElementById('crypto-score').textContent}\n`;
+                markdown += `- **Memory Operations:** ${document.getElementById('memory-score').textContent}\n`;
+                markdown += `- **Memory Bandwidth:** ${document.getElementById('memory-bandwidth').textContent}\n`;
+                markdown += `- **Garbage Collection:** ${document.getElementById('gc-score').textContent}\n\n`;
+                
+                // Display and input
+                markdown += '## Display and Input\n\n';
+                markdown += `- **Refresh Rate:** ${document.getElementById('refresh-rate').textContent}\n`;
+                markdown += `- **Animation Smoothness:** ${document.getElementById('animation-score').textContent}\n`;
+                markdown += `- **Color Depth:** ${document.getElementById('color-depth').textContent}\n`;
+                markdown += `- **Pixel Density:** ${document.getElementById('pixel-density').textContent}\n`;
+                markdown += `- **Touch Response:** ${document.getElementById('touch-score').textContent}\n`;
+                markdown += `- **Input Lag:** ${document.getElementById('input-lag').textContent}\n\n`;
+                
+                // Network and connectivity
+                markdown += '## Network and Connectivity\n\n';
+                markdown += `- **Network Score:** ${document.getElementById('network-score').textContent}\n`;
+                markdown += `- **Download Speed:** ${document.getElementById('download-speed').textContent}\n`;
+                markdown += `- **Network Latency:** ${document.getElementById('network-latency').textContent}\n`;
+                markdown += `- **Connection Type:** ${document.getElementById('connection-type').textContent}\n\n`;
+                
+                // Hardware features section
+                markdown += '## Hardware Features\n\n';
+                
+                // Get all badges and their states
+                const featureBadges = document.querySelectorAll('#hardware-features div');
+                const availableFeatures = [];
+                const unavailableFeatures = [];
+                
+                featureBadges.forEach(badge => {
+                    const featureName = badge.textContent;
+                    // If it has a line-through class, it's unavailable
+                    if (badge.classList.contains('line-through')) {
+                        unavailableFeatures.push(featureName);
+                    } else {
+                        availableFeatures.push(featureName);
+                    }
+                });
+                
+                markdown += '### Available Features\n\n';
+                if (availableFeatures.length > 0) {
+                    availableFeatures.forEach(feature => {
+                        markdown += `- ${feature}\n`;
+                    });
+                } else {
+                    markdown += 'No hardware features detected.\n';
+                }
+                markdown += '\n';
+                
+                markdown += '### Unavailable Features\n\n';
+                if (unavailableFeatures.length > 0) {
+                    unavailableFeatures.forEach(feature => {
+                        markdown += `- ${feature}\n`;
+                    });
+                } else {
+                    markdown += 'All tested features are available.\n';
+                }
+                markdown += '\n';
+                
+                // Audio capabilities
+                markdown += '## Audio Capabilities\n\n';
+                markdown += `- **Audio Processing:** ${document.getElementById('audio-score').textContent}\n`;
+                markdown += `- **Audio Formats:** ${document.getElementById('audio-formats').textContent}\n`;
+                markdown += `- **Audio Latency:** ${document.getElementById('audio-latency').textContent}\n\n`;
+                
+                // Sensors & battery
+                markdown += '## Sensors and Battery\n\n';
+                markdown += `- **Available Sensors:** ${document.getElementById('sensor-list').textContent}\n`;
+                markdown += `- **Battery Status:** ${document.getElementById('battery-status').textContent}\n\n`;
+                
+                // Additional capabilities
+                markdown += '## Additional Capabilities\n\n';
+                markdown += `- **WebAssembly Support:** ${document.getElementById('wasm-support').textContent}\n`;
+                markdown += `- **WebRTC Support:** ${document.getElementById('webrtc-support').textContent}\n`;
+                markdown += `- **Storage Limit:** ${document.getElementById('storage-limit').textContent}\n\n`;
+                
+                // Performance recommendation
+                markdown += '## Performance Recommendation\n\n';
+                markdown += document.getElementById('performance-recommendation').textContent + '\n\n';
+                
+                // Warning if throttling detected
+                if (throttlingDetected) {
+                    markdown += '> ⚠️ **Warning:** Performance throttling detected! Your device may be thermal throttling or running in power-saving mode.\n\n';
+                }
+                
+                // Footer
+                markdown += '---\n';
+                markdown += '_Report generated by BenchMaster_\n';
+                markdown += '[benchmaster.vercel.app](https://benchmaster.vercel.app)\n';
+                
+                return markdown;
+            } catch (e) {
+                log(`Error formatting markdown: ${e.message}`);
+                return '# Error generating report';
+            }
+        }
+        
+        // Format results as plain text
+        function formatResultsAsText() {
+            try {
+                let text = '';
+                
+                // Title and date
+                text += 'DEVICE PERFORMANCE ANALYSIS REPORT\n';
+                text += '==================================\n\n';
+                text += `Report generated: ${new Date().toLocaleString()}\n\n`;
+                
+                // Overall score
+                text += `PERFORMANCE INDEX: ${document.getElementById('overall-score').textContent}/100\n\n`;
+                
+                // Device profile
+                text += 'DEVICE PROFILE\n';
+                text += '-------------\n\n';
+                text += `Device Type: ${document.getElementById('device-type').textContent}\n`;
+                text += `Performance Tier: ${document.getElementById('performance-tier').textContent}\n`;
+                text += `Comparable Devices: ${document.getElementById('comparable-devices').textContent}\n\n`;
+                
+                // Performance scores
+                text += 'PERFORMANCE SCORES\n';
+                text += '-----------------\n\n';
+                text += `Graphics: ${document.getElementById('graphics-score').textContent}\n`;
+                text += `Processor: ${document.getElementById('processor-score').textContent}\n`;
+                text += `Memory: ${document.getElementById('memory-display').textContent}\n`;
+                text += `Display: ${document.getElementById('display-score').textContent}\n`;
+                text += `Network: ${document.getElementById('network-score').textContent}/100\n`;
+                text += `Audio: ${document.getElementById('audio-score').textContent}/100\n`;
+                text += `Touch Response: ${document.getElementById('touch-score').textContent}/100\n\n`;
+                
+                // Graphics details
+                text += '3D GRAPHICS DETAILS\n';
+                text += '-------------------\n\n';
+                text += `Max Objects Rendered: ${document.getElementById('max-objects').textContent}\n`;
+                text += `Rendering Score: ${document.getElementById('rendering-score').textContent}\n`;
+                text += `Geometry Processing: ${document.getElementById('geometry-score').textContent}\n`;
+                text += `Shader Performance: ${document.getElementById('shader-score').textContent}\n`;
+                text += `WebGL Support: ${document.getElementById('webgl-support').textContent}\n\n`;
+                
+                // CPU details
+                text += 'CPU PERFORMANCE DETAILS\n';
+                text += '----------------------\n\n';
+                text += `CPU Performance: ${document.getElementById('cpu-score').textContent}\n`;
+                text += `String Processing: ${document.getElementById('string-score').textContent}\n`;
+                text += `JSON Processing: ${document.getElementById('json-score').textContent}\n`;
+                text += `Math Operations: ${document.getElementById('math-score').textContent}\n`;
+                text += `Crypto Operations: ${document.getElementById('crypto-score').textContent}\n`;
+                text += `Memory Operations: ${document.getElementById('memory-score').textContent}\n`;
+                text += `Memory Bandwidth: ${document.getElementById('memory-bandwidth').textContent}\n`;
+                text += `Garbage Collection: ${document.getElementById('gc-score').textContent}\n\n`;
+                
+                // Display and input
+                text += 'DISPLAY AND INPUT\n';
+                text += '-----------------\n\n';
+                text += `Refresh Rate: ${document.getElementById('refresh-rate').textContent}\n`;
+                text += `Animation Smoothness: ${document.getElementById('animation-score').textContent}\n`;
+                text += `Color Depth: ${document.getElementById('color-depth').textContent}\n`;
+                text += `Pixel Density: ${document.getElementById('pixel-density').textContent}\n`;
+                text += `Touch Response: ${document.getElementById('touch-score').textContent}\n`;
+                text += `Input Lag: ${document.getElementById('input-lag').textContent}\n\n`;
+                
+                // Network and connectivity
+                text += 'NETWORK AND CONNECTIVITY\n';
+                text += '------------------------\n\n';
+                text += `Network Score: ${document.getElementById('network-score').textContent}\n`;
+                text += `Download Speed: ${document.getElementById('download-speed').textContent}\n`;
+                text += `Network Latency: ${document.getElementById('network-latency').textContent}\n`;
+                text += `Connection Type: ${document.getElementById('connection-type').textContent}\n\n`;
+                
+                // Hardware features section
+                text += 'HARDWARE FEATURES\n';
+                text += '-----------------\n\n';
+                
+                // Get all badges and their states
+                const featureBadges = document.querySelectorAll('#hardware-features div');
+                const availableFeatures = [];
+                const unavailableFeatures = [];
+                
+                featureBadges.forEach(badge => {
+                    const featureName = badge.textContent;
+                    // If it has a line-through class, it's unavailable
+                    if (badge.classList.contains('line-through')) {
+                        unavailableFeatures.push(featureName);
+                    } else {
+                        availableFeatures.push(featureName);
+                    }
+                });
+                
+                text += 'Available Features:\n';
+                if (availableFeatures.length > 0) {
+                    availableFeatures.forEach(feature => {
+                        text += `- ${feature}\n`;
+                    });
+                } else {
+                    text += 'No hardware features detected.\n';
+                }
+                text += '\n';
+                
+                text += 'Unavailable Features:\n';
+                if (unavailableFeatures.length > 0) {
+                    unavailableFeatures.forEach(feature => {
+                        text += `- ${feature}\n`;
+                    });
+                } else {
+                    text += 'All tested features are available.\n';
+                }
+                text += '\n';
+                
+                // Audio capabilities
+                text += 'AUDIO CAPABILITIES\n';
+                text += '-----------------\n\n';
+                text += `Audio Processing: ${document.getElementById('audio-score').textContent}\n`;
+                text += `Audio Formats: ${document.getElementById('audio-formats').textContent}\n`;
+                text += `Audio Latency: ${document.getElementById('audio-latency').textContent}\n\n`;
+                
+                // Sensors & battery
+                text += 'SENSORS AND BATTERY\n';
+                text += '-------------------\n\n';
+                text += `Available Sensors: ${document.getElementById('sensor-list').textContent}\n`;
+                text += `Battery Status: ${document.getElementById('battery-status').textContent}\n\n`;
+                
+                // Additional capabilities
+                text += 'ADDITIONAL CAPABILITIES\n';
+                text += '------------------------\n\n';
+                text += `WebAssembly Support: ${document.getElementById('wasm-support').textContent}\n`;
+                text += `WebRTC Support: ${document.getElementById('webrtc-support').textContent}\n`;
+                text += `Storage Limit: ${document.getElementById('storage-limit').textContent}\n\n`;
+                
+                // Performance recommendation
+                text += 'PERFORMANCE RECOMMENDATION\n';
+                text += '--------------------------\n\n';
+                text += document.getElementById('performance-recommendation').textContent + '\n\n';
+                
+                // Warning if throttling detected
+                if (throttlingDetected) {
+                    text += 'WARNING: Performance throttling detected! Your device may be thermal throttling or running in power-saving mode.\n\n';
+                }
+                
+                // Footer
+                text += '--------------------------------------------------\n';
+                text += 'Report generated by BenchMaster\n';
+                text += 'https://benchmaster.vercel.app\n';
+                
+                return text;
+            } catch (e) {
+                log(`Error formatting text: ${e.message}`);
+                return 'ERROR GENERATING REPORT';
+            }
+        }
+        
+        // Show export modal with the selected format
+        function showExportModal(format) {
+            try {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                let content, fileName, mimeType;
+
+                switch (format) {
+                    case 'pdf':
+                        // Convert HTML content to PDF using html2pdf library
+                        const pdfContent = formatResultsForPDF();
+                        html2pdf().from(pdfContent).save(`benchmark-results-${timestamp}.pdf`);
+                        break;
+
+                    case 'markdown':
+                        content = formatResultsAsMarkdown();
+                        fileName = `benchmark-results-${timestamp}.md`;
+                        mimeType = 'text/markdown;charset=utf-8';
+                        downloadFile(content, fileName, mimeType);
+                        break;
+
+                    case 'txt':
+                        content = formatResultsAsText();
+                        fileName = `benchmark-results-${timestamp}.txt`;
+                        mimeType = 'text/plain;charset=utf-8';
+                        downloadFile(content, fileName, mimeType);
+                        break;
+                }
+
+                // Close modal after download starts
+                setTimeout(() => {
+                    exportModal.style.display = 'none';
+                }, 500);
+
+            } catch (e) {
+                log(`Error exporting results: ${e.message}`);
+                alert('Error exporting results. Please try again.');
+            }
+        }
+
+        // Utility function to trigger file download
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Export button click handlers
+        function setupExportFunctionality() {
+            // Load html2pdf.js dynamically when needed
+            function loadHtml2pdf() {
+                return new Promise((resolve, reject) => {
+                    if (window.html2pdf) {
+                        resolve();
+                        return;
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            // Open export modal
+            exportButton.addEventListener('click', () => {
+                exportModal.style.display = 'block';
+                // Preload html2pdf.js
+                loadHtml2pdf().catch(e => log(`Warning: Failed to preload html2pdf: ${e.message}`));
+            });
+
+            // Close export modal
+            closeExportModal.addEventListener('click', () => {
+                exportModal.style.display = 'none';
+            });
+
+            // Close modal when clicking outside
+            window.addEventListener('click', (e) => {
+                if (e.target === exportModal) {
+                    exportModal.style.display = 'none';
+                }
+            });
+
+            // Format buttons with loading states
+            exportPdfButton.addEventListener('click', async () => {
+                const btn = exportPdfButton;
+                btn.disabled = true;
+                btn.textContent = 'Preparing PDF...';
+                try {
+                    await loadHtml2pdf();
+                    showExportModal('pdf');
+                } catch (e) {
+                    log(`PDF export error: ${e.message}`);
+                    alert('Error generating PDF. Please try another format.');
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'PDF';
+                }
+            });
+
+            exportMarkdownButton.addEventListener('click', () => showExportModal('markdown'));
+            exportTxtButton.addEventListener('click', () => showExportModal('txt'));
+        }
+
+        // Start the full test sequence
+        function startTest() {
+            if (isTestRunning) return;
+            
+            // Reset test state
+            isTestRunning = true;
+            currentStage = 'rendering';
+            fpsValues = [];
+            maxTestedObjects = 0;
+            lastFpsAverage = 0;
+            peakFps = 0;
+            
+            // Reset scores
+            renderingScore = 0;
+            geometryScore = 0;
+            shaderScore = 0;
+            particleScore = 0;
+            cpuScore = 0;
+            stringScore = 0;
+            jsonScore = 0;
+            mathScore = 0;
+            cryptoScore = 0;
+            memoryScore = 0;
+            gcScore = 0;
+            animationScore = 0;
+            audioScore = 0;
+            touchScore = 0;
+            networkScore = 0;
+            displayScore = 0;
+            
+            // Reset test results
+            cpuComputeTime = 0;
+            memoryBandwidth = 0;
+            refreshRate = 0;
+            inputLag = 0;
+            colorDepth = '';
+            pixelDensity = '';
+            audioLatency = 0;
+            audioFormats = [];
+            downloadSpeed = 0;
+            networkLatency = 0;
+            connectionType = '';
+            storageLimit = '';
+            batteryStatus = {};
+            throttlingDetected = false;
+            
+            // Reset UI
+            clearLog();
+            updateProgress(0);
+            progressBar.textContent = "0%";
+            resultsPanel.classList.add('hidden');
+            document.getElementById('throttling-warning').classList.add('hidden');
+            startButton.disabled = true;
+            startButton.textContent = "Testing in Progress...";
+            updateStatus("Starting 3D rendering test...");
+            
+            // Start with initial objects
+            log("Starting comprehensive performance analysis...");
+            
+            // Check if WebGL is available
+            if (renderer) {
+                createObjects(START_OBJECT_COUNT);
+            } else {
+                log("WebGL not available, skipping 3D tests");
+                renderingScore = 0; 
+                geometryScore = 0;
+                shaderScore = 0;
+                particleScore = 0;
+                maxTestedObjects = 0;
+                updateProgress(25);
+                detectRefreshRate();
+            }
+        }
+        
+        // Helper functions
+        function updateStatus(message) {
+            try {
+                const statusDiv = statusPanel.querySelector('div:first-child');
+                statusDiv.textContent = `Status: ${message}`;
+            } catch (e) {
+                // Silently ignore status update errors
+            }
+        }
+        
+        function updateProgress(percent) {
+            try {
+                progressBar.style.width = `${percent}%`;
+                progressBar.textContent = `${Math.round(percent)}%`;
+            } catch (e) {
+                // Silently ignore progress update errors
+            }
+        }
+        
+        function log(message) {
+            try {
+                const now = new Date();
+                const timestamp = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const logLine = document.createElement('div');
+                logLine.textContent = `[${timestamp}] ${message}`;
+                logElement.appendChild(logLine);
+                logElement.scrollTop = logElement.scrollHeight;
+                console.log(message);
+            } catch (e) {
+                // Silently ignore logging errors
+                console.log(message);
+            }
+        }
+        
+        function clearLog() {
+            try {
+                logElement.innerHTML = '';
+            } catch (e) {
+                // Silently ignore log clearing errors
+            }
+        }
+        
+        // Initialize
+        function init() {
+            try {
+                log("Initializing performance test environment...");
+                
+                // Initialize Three.js dynamically to prevent errors
+                const script = document.createElement('script');
+                script.src = "https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js";
+                script.onload = () => {
+                    log("THREE.js loaded successfully");
+                    
+                    // Initialize Three.js - with fallback if not supported
+                    if (!initThree()) {
+                        log("3D rendering not available, some tests will be skipped");
+                    }
+                    
+                    // Set up event listener
+                    startButton.addEventListener('click', startTest);
+                    
+                    // Set up export functionality
+                    setupExportFunctionality();
+                    
+                    // Hide loading screen
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    // Setup dark mode detection
+                    setupDarkMode();
+                    
+                    log("Test environment initialized. Press 'Start' to begin the performance test.");
+                };
+                
+                script.onerror = () => {
+                    log("Could not load THREE.js library. 3D tests will be skipped.");
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('canvas-container').style.display = 'none';
+                    
+                    // Still allow CPU tests
+                    startButton.addEventListener('click', () => {
+                        isTestRunning = true;
+                        renderingScore = 0;
+                        geometryScore = 0;
+                        shaderScore = 0;
+                        particleScore = 0;
+                        updateProgress(25);
+                        detectRefreshRate();
+                    });
+                    
+                    // Set up export functionality
+                    setupExportFunctionality();
+                    
+                    // Setup dark mode detection
+                    setupDarkMode();
+                };
+                
+                document.head.appendChild(script);
+            } catch (error) {
+                console.error("Initialization error:", error);
+                document.getElementById('loading-text').textContent = "Error: " + error.message;
+                
+                // Still show the UI
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        // Setup dark mode detection
+        function setupDarkMode() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+            }
+            
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (event.matches) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            });
+        }
+
+
+//<a href="/des.html" class="py-3 px-6 bg-white text-primary hover:bg-gray-100 font-medium rounded-lg transition duration-300 shadow-lg">Offical website of BenchMaster</a>
+        
+        // Start initialization when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
