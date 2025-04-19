@@ -86,5 +86,21 @@
             Return to Homepage →
         </a>
     </div>
+    <script>
+        function redirectIfMdEnds() {
+  // Get the current URL
+  const currentUrl = window.location.href;
+
+  // Check if the URL ends with ".md/"
+  if (currentUrl.endsWith('.md/')) {
+    // Redirect to another page (replace with your target URL)
+    window.location.href = 'https://example.com/another-page';
+  }
+}
+
+// Call the function to perform the check and redirect
+redirectIfMdEnds();
+
+    </script>
 </body>
 </html>
